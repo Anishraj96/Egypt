@@ -1,8 +1,32 @@
 <html>
-<center>
 <title> Egypt Booking Training </title>
-<h1> Egypt Booking Training </h1>
-<h5>(**NOTE**) After end of the Video Please click next slide to complete the Questionnaire</h5>
-<iframe src="https://teamsite.msc.com/sites/THAILAND/_layouts/15/Doc.aspx?sourcedoc={d192baeb-f807-4c59-927e-d00bc5cd952b}&amp;action=embedview&amp;wdAr=1.7777777777777777" width="1024px" height="576px" frameborder="0">This is an embedded <a target="_blank" href="https://office.com">Microsoft Office</a> presentation, powered by <a target="_blank" href="https://office.com/webapps">Office</a>.</iframe>
-</center>
+<center>
+<h1>Egypt Booking Training </h1>
+<button id="my-button" style="display:none"><b>Take Questionnaire</b></button>
+<video id="my-video" width="920" height="640" controls="true">
+  <source src="C:\Users\ARJ Networks\Desktop\Sample.mp4" type="video/mp4">
+</video>
+<center>
+<script>
+  const video = document.getElementById('my-video');
+  const button = document.getElementById('my-button');
+
+  video.addEventListener('ended', () => {
+    button.style.display = 'block';
+  });
+
+  button.addEventListener('click', () => {
+    window.location.href = 'https://forms.office.com/r/n7hkYLUpDS';
+  });
+</script>
+<style>
+
+body  {
+ 
+  background: url('https://www.msc.com/-/media/images/msc-cargo/vessels/2010/2/msc19001066/msc19001066_s.jpg?w=1920&hash=8D9ABF147E9EC81984939352D72E4873');
+  background-repeat: no-repeat;
+  background-size: auto;
+  background-position: center center;
+}
+</style>
 </html>
