@@ -3,14 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Select 11 Names</title>
+    <title>Select 11 Names and Choose Captain/VC</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        textarea {
+            width: 100%;
+            height: 150px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+        .result {
+            margin-top: 20px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            padding: 5px;
+            background-color: #f0f0f0;
+            margin-bottom: 5px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Select 11 Names</h1>
-    <form method="POST">
-        <label for="names">Enter names (comma separated):</label><br>
-        <textarea id="names" name="names" rows="10" cols="30"></textarea><br><br>
-        <input type="submit" value="Submit">
-    </form>
+    <h1>Select 11 Names and Choose Captain/VC</h1>
+    <label for="names">Enter names (comma separated):</label><br>
+    <textarea id="names" placeholder="e.g., John, Alice, Bob, Charlie, ..."></textarea><br>
+    <button onclick="selectNames()">Submit</button>
+
+    <div class="result" id="result" style="display: none;">
+        <h2>Selected 11 Names:</h2>
+        <ul id="selectedNames"></ul>
+        <h3>Captain: <span id="captain"></span></h3>
+        <h3>Vice-Captain: <span id="viceCaptain"></span></h3>
+    </div>
+
+    <script>
+        function selectNames() {
+            // Get the input value and split into an array of names
+            const input = document.getElementById('names').value;
+            const names = input.split(',').map(name => name.trim()).filter(name => name);
+
+            // Check if there are at least 11 names
+            if (names.length < 11) {
+                alert("Please enter at least 11 names.");
+                return;
+            }
+
+            // Randomly select 11 names
+            const selected11 = [];
+            while (selected11.length < 11) {
+                const randomIndex = Math.floor(Math.random() * names.length);
+                const name = names[randomIndex];
+                if (!selected11.includes(name)) {
+                    selected11.push(name);
+                }
+            }
+
+            // Randomly select Captain and Vice-Captain
+            const captainIndex = Math.floor(Math.random() * selected11.length);
+            const captain = selected11[captainIndex];
+            let viceCaptainIndex;
+            do {
+                viceCaptainIndex = Math.floor(Math.random() * selected11.length);
+            } while (viceCaptainIndex === captainIndex);
+            const viceCaptain = selected11[viceCaptainIndex];
+
+            // Display the results
+            const selectedNamesList = document.getElementById('selectedNames');
+            selectedNamesList.innerHTML = selected11.map(name => `<li>${name}</li>`).join('');
+
+            document.getElementById('captain').textContent = captain;
+            document.getElementById('viceCaptain').textContent = viceCaptain;
+
+            document.getElementById('result').style.display = 'block';
+        }
+    </script>
 </body>
 </html>
