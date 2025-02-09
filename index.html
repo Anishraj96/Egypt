@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select 11 Names</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            margin: auto;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+            margin-bottom: 10px;
+            padding: 5px;
+        }
+        button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #218838;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        li {
+            background: #ddd;
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .highlight {
+            font-weight: bold;
+            color: #d9534f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Enter Names (comma-separated)</h2>
+        <textarea id="namesInput"></textarea>
+        <br>
+        <button onclick="selectNames()">Select 11 Players</button>
+        <h3>Selected Players:</h3>
+        <ul id="selectedPlayers"></ul>
+        <h3>Captain: <span id="captain" class="highlight"></span></h3>
+        <h3>Vice-Captain: <span id="viceCaptain" class="highlight"></span></h3>
+    </div>
+
+    <script>
+        function selectNames() {
+            let names = document.getElementById("namesInput").value.split(",").map(name => name.trim()).filter(name => name);
+            
+            if (names.length < 11) {
+                alert("You must enter at least 11 names.");
+                return;
+            }
+
+            // Shuffle names and select first 11
+            let shuffled = names.sort(() => 0.5 - Math.random());
+            let selected = shuffled.slice(0, 11);
+            
+            let playersList = document.getElementById("selectedPlayers");
+            playersList.innerHTML = "";
+            selected.forEach(name => {
+                let li = document.createElement("li");
+                li.textContent = name;
+                playersList.appendChild(li);
+            });
+
+            // Assign Captain and Vice-Captain randomly
+            let captainIndex = Math.floor(Math.random() * selected.length);
+            let viceCaptainIndex;
+            do {
+                viceCaptainIndex = Math.floor(Math.random() * selected.length);
+            } while (viceCaptainIndex === captainIndex);
+
+            document.getElementById("captain").textContent = selected[captainIndex];
+            document.getElementById("viceCaptain").textContent = selected[viceCaptainIndex];
+        }
+    </script>
+</body>
+</html>
