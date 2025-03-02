@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Select 11 Names - VBScript</title>
+    <title>Select 11 Names - JavaScript</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -64,46 +64,42 @@
         <h3>Vice-Captain: <span id="viceCaptain" class="highlight"></span></h3>
     </div>
 
-    <script language="VBScript">
-        Sub SelectNames()
-            Dim names, nameArray, i, selectedPlayers, playerList, captainIndex, viceCaptainIndex
-            names = document.getElementById("namesInput").value
-            nameArray = Split(names, ",")
+    <script>
+        function SelectNames() {
+            let names = document.getElementById("namesInput").value.split(",").map(name => name.trim()).filter(name => name);
             
-            If UBound(nameArray) < 10 Then
-                MsgBox "You must enter at least 11 names.", 0, "Error"
-                Exit Sub
-            End If
-            
-            Call FisherYatesShuffle(nameArray)
-            selectedPlayers = ""
-            Set playerList = document.getElementById("selectedPlayers")
-            playerList.innerHTML = ""
-            
-            For i = 0 To 10
-                selectedPlayers = selectedPlayers & "<li>" & Trim(nameArray(i)) & "</li>"
-            Next
-            playerList.innerHTML = selectedPlayers
-            
-            captainIndex = Int(Rnd * 11)
-            Do
-                viceCaptainIndex = Int(Rnd * 11)
-            Loop While viceCaptainIndex = captainIndex
-            
-            document.getElementById("captain").innerHTML = Trim(nameArray(captainIndex))
-            document.getElementById("viceCaptain").innerHTML = Trim(nameArray(viceCaptainIndex))
-        End Sub
+            if (names.length < 11) {
+                alert("You must enter at least 11 names.");
+                return;
+            }
 
-        Sub FisherYatesShuffle(arr)
-            Dim i, j, temp
-            Randomize
-            For i = UBound(arr) To 1 Step -1
-                j = Int(Rnd * (i + 1))
-                temp = arr(i)
-                arr(i) = arr(j)
-                arr(j) = temp
-            Next
-        End Sub
+            FisherYatesShuffle(names);
+            let selected = names.slice(0, 11);
+            
+            let playersList = document.getElementById("selectedPlayers");
+            playersList.innerHTML = "";
+            selected.forEach(name => {
+                let li = document.createElement("li");
+                li.textContent = name;
+                playersList.appendChild(li);
+            });
+
+            let captainIndex = Math.floor(Math.random() * selected.length);
+            let viceCaptainIndex;
+            do {
+                viceCaptainIndex = Math.floor(Math.random() * selected.length);
+            } while (viceCaptainIndex === captainIndex);
+
+            document.getElementById("captain").textContent = selected[captainIndex];
+            document.getElementById("viceCaptain").textContent = selected[viceCaptainIndex];
+        }
+
+        function FisherYatesShuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                let j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
     </script>
 </body>
 </html>
