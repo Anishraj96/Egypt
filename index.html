@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Select 11 Names</title>
+    <title>Select 11 Names - VBScript</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -57,44 +57,53 @@
         <h2>Enter Names (comma-separated)</h2>
         <textarea id="namesInput"></textarea>
         <br>
-        <button onclick="selectNames()">Select 11 Players</button>
+        <button onclick="SelectNames()">Select 11 Players</button>
         <h3>Selected Players:</h3>
         <ul id="selectedPlayers"></ul>
         <h3>Captain: <span id="captain" class="highlight"></span></h3>
         <h3>Vice-Captain: <span id="viceCaptain" class="highlight"></span></h3>
     </div>
 
-    <script>
-        function selectNames() {
-            let names = document.getElementById("namesInput").value.split(",").map(name => name.trim()).filter(name => name);
+    <script language="VBScript">
+        Sub SelectNames()
+            Dim names, nameArray, i, selectedPlayers, playerList, captainIndex, viceCaptainIndex
+            names = document.getElementById("namesInput").value
+            nameArray = Split(names, ",")
             
-            if (names.length < 11) {
-                alert("You must enter at least 11 names.");
-                return;
-            }
-
-            // Shuffle names and select first 11
-            let shuffled = names.sort(() => 0.5 - Math.random());
-            let selected = shuffled.slice(0, 11);
+            If UBound(nameArray) < 10 Then
+                MsgBox "You must enter at least 11 names.", 0, "Error"
+                Exit Sub
+            End If
             
-            let playersList = document.getElementById("selectedPlayers");
-            playersList.innerHTML = "";
-            selected.forEach(name => {
-                let li = document.createElement("li");
-                li.textContent = name;
-                playersList.appendChild(li);
-            });
+            Call FisherYatesShuffle(nameArray)
+            selectedPlayers = ""
+            Set playerList = document.getElementById("selectedPlayers")
+            playerList.innerHTML = ""
+            
+            For i = 0 To 10
+                selectedPlayers = selectedPlayers & "<li>" & Trim(nameArray(i)) & "</li>"
+            Next
+            playerList.innerHTML = selectedPlayers
+            
+            captainIndex = Int(Rnd * 11)
+            Do
+                viceCaptainIndex = Int(Rnd * 11)
+            Loop While viceCaptainIndex = captainIndex
+            
+            document.getElementById("captain").innerHTML = Trim(nameArray(captainIndex))
+            document.getElementById("viceCaptain").innerHTML = Trim(nameArray(viceCaptainIndex))
+        End Sub
 
-            // Assign Captain and Vice-Captain randomly
-            let captainIndex = Math.floor(Math.random() * selected.length);
-            let viceCaptainIndex;
-            do {
-                viceCaptainIndex = Math.floor(Math.random() * selected.length);
-            } while (viceCaptainIndex === captainIndex);
-
-            document.getElementById("captain").textContent = selected[captainIndex];
-            document.getElementById("viceCaptain").textContent = selected[viceCaptainIndex];
-        }
+        Sub FisherYatesShuffle(arr)
+            Dim i, j, temp
+            Randomize
+            For i = UBound(arr) To 1 Step -1
+                j = Int(Rnd * (i + 1))
+                temp = arr(i)
+                arr(i) = arr(j)
+                arr(j) = temp
+            Next
+        End Sub
     </script>
 </body>
 </html>
