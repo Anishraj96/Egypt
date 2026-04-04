@@ -1,105 +1,179 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Select 11 Names - JavaScript</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            text-align: center;
-            padding: 20px;
-        }
-        .container {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            max-width: 500px;
-            margin: auto;
-        }
-        textarea {
-            width: 100%;
-            height: 100px;
-            margin-bottom: 10px;
-            padding: 5px;
-        }
-        button {
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 10px;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        button:hover {
-            background: #218838;
-        }
-        ul {
-            list-style: none;
-            padding: 0;
-        }
-        li {
-            background: #ddd;
-            margin: 5px 0;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        .highlight {
-            font-weight: bold;
-            color: #d9534f;
-        }
-    </style>
+<title>Dream11 AI (Name Only)</title>
+
+<style>
+body { font-family: Arial; background:#0f172a; color:white; text-align:center; }
+textarea { width:90%; height:70px; margin:5px; border-radius:8px; }
+input, select { padding:8px; margin:5px; border-radius:8px; }
+button { padding:10px; margin:10px; border-radius:8px; background:#22c55e; color:white; }
+.team { background:#1e293b; margin:10px; padding:10px; border-radius:10px; }
+.c { color:gold; }
+.vc { color:#38bdf8; }
+</style>
+
 </head>
+
 <body>
-    <div class="container">
-        <h2>Enter Names (comma-separated)</h2>
-        <textarea id="namesInput"></textarea>
-        <br>
-        <button onclick="SelectNames()">Select 11 Players</button>
-        <h3>Selected Players:</h3>
-        <ul id="selectedPlayers"></ul>
-        <h3>Captain: <span id="captain" class="highlight"></span></h3>
-        <h3>Vice-Captain: <span id="viceCaptain" class="highlight"></span></h3>
-    </div>
 
-    <script>
-        function SelectNames() {
-            let names = document.getElementById("namesInput").value.split(",").map(name => name.trim()).filter(name => name);
-            
-            if (names.length < 11) {
-                alert("You must enter at least 11 names.");
-                return;
+<h2>🏏 Dream11 AI (Simple Input)</h2>
+<p>Enter only player names (comma separated)</p>
+
+WK:<br>
+<textarea id="wk"></textarea>
+
+BAT:<br>
+<textarea id="bat"></textarea>
+
+AR:<br>
+<textarea id="ar"></textarea>
+
+BOWL:<br>
+<textarea id="bowl"></textarea>
+
+<br>
+
+Pitch:
+<select id="pitch">
+<option value="batting">Batting</option>
+<option value="bowling">Bowling</option>
+<option value="balanced">Balanced</option>
+<option value="spin">Spin</option>
+</select>
+
+Teams:
+<input type="number" id="teams" value="5" min="1" max="20">
+
+<br>
+
+<button onclick="generate()">Generate Teams</button>
+
+<div id="out"></div>
+
+<script>
+
+// 🔥 PARSE NAME ONLY
+function parseNames(text){
+    return text.split(",").map(n=>{
+        return {
+            name: n.trim(),
+            credit: (Math.random()*2 + 8).toFixed(1), // 8–10
+            sel: Math.floor(Math.random()*70)+20 // 20–90
+        };
+    }).filter(p=>p.name);
+}
+
+// SMART PICK
+function pick(list,count,used){
+
+    let res=[];
+    let pool=[...list];
+
+    while(res.length<count && pool.length>0){
+
+        let weights=pool.map(p=>{
+            let diff = p.sel<40 ? 1.7 : 1;
+            let repeat = used[p.name]?0.4:1;
+            return (100-p.sel)*diff*repeat;
+        });
+
+        let total=weights.reduce((a,b)=>a+b,0);
+        let r=Math.random()*total;
+
+        for(let i=0;i<pool.length;i++){
+            if(r<weights[i]){
+                res.push(pool[i]);
+                used[p.name]=(used[p.name]||0)+1;
+                pool.splice(i,1);
+                break;
             }
+            r-=weights[i];
+        }
+    }
 
-            FisherYatesShuffle(names);
-            let selected = names.slice(0, 11);
-            
-            let playersList = document.getElementById("selectedPlayers");
-            playersList.innerHTML = "";
-            selected.forEach(name => {
-                let li = document.createElement("li");
-                li.textContent = name;
-                playersList.appendChild(li);
-            });
+    return res;
+}
 
-            let captainIndex = Math.floor(Math.random() * selected.length);
-            let viceCaptainIndex;
-            do {
-                viceCaptainIndex = Math.floor(Math.random() * selected.length);
-            } while (viceCaptainIndex === captainIndex);
+function generate(){
 
-            document.getElementById("captain").textContent = selected[captainIndex];
-            document.getElementById("viceCaptain").textContent = selected[viceCaptainIndex];
+    let WK=parseNames(document.getElementById("wk").value);
+    let BAT=parseNames(document.getElementById("bat").value);
+    let AR=parseNames(document.getElementById("ar").value);
+    let BOWL=parseNames(document.getElementById("bowl").value);
+
+    if(WK.length==0 || BAT.length==0 || AR.length==0 || BOWL.length==0){
+        alert("Enter players in all categories!");
+        return;
+    }
+
+    let pitch=document.getElementById("pitch").value;
+    let teamCount=document.getElementById("teams").value;
+
+    let combo={
+        batting:{wk:1,bat:5,ar:2,bowl:3},
+        bowling:{wk:1,bat:3,ar:2,bowl:5},
+        balanced:{wk:1,bat:4,ar:3,bowl:3},
+        spin:{wk:1,bat:3,ar:3,bowl:4}
+    };
+
+    let c=combo[pitch];
+    let output="";
+
+    for(let t=1;t<=teamCount;t++){
+
+        let team=[];
+
+        // pick players
+        team.push(...shuffle(WK).slice(0,c.wk));
+        team.push(...shuffle(BAT).slice(0,c.bat));
+        team.push(...shuffle(AR).slice(0,c.ar));
+        team.push(...shuffle(BOWL).slice(0,c.bowl));
+
+        // ensure 11 players
+        let all=[...WK,...BAT,...AR,...BOWL];
+
+        while(team.length<11){
+            let extra=all[Math.floor(Math.random()*all.length)];
+            if(!team.find(p=>p.name===extra.name)){
+                team.push(extra);
+            }
         }
 
-        function FisherYatesShuffle(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                let j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
+        // shuffle team
+        team = shuffle(team);
+
+        // captain logic
+        let captain = team[Math.floor(Math.random()*team.length)];
+        let vice = team[Math.floor(Math.random()*team.length)];
+
+        while(vice.name===captain.name){
+            vice = team[Math.floor(Math.random()*team.length)];
         }
-    </script>
+
+        output+=`<div class="team"><b>Team ${t}</b><br>`;
+
+        team.forEach(p=>{
+            let role="";
+            if(p.name===captain.name) role="(C)";
+            else if(p.name===vice.name) role="(VC)";
+
+            output+=`<div>
+                     ${p.name} ${role}
+                     </div>`;
+        });
+
+        output+=`</div>`;
+    }
+
+    document.getElementById("out").innerHTML=output;
+}
+
+// shuffle helper
+function shuffle(arr){
+    return [...arr].sort(()=>Math.random()-0.5);
+} 
+</script>
+
 </body>
 </html>
