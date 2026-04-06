@@ -1,23 +1,23 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Dream11 AI</title>
+<title>Dream11 AI Pro</title>
 
 <style>
 body { font-family: Arial; background:#0f172a; color:white; text-align:center; }
 textarea { width:90%; height:70px; margin:5px; border-radius:8px; }
-input, select { padding:8px; margin:5px; border-radius:8px; }
+select,input { padding:8px; margin:5px; border-radius:8px; }
 button { padding:10px; margin:10px; border-radius:8px; background:#22c55e; color:white; }
 .team { background:#1e293b; margin:10px; padding:10px; border-radius:10px; }
-.c { color:gold; }
-.vc { color:#38bdf8; }
+.c { color:gold; font-weight:bold; }
+.vc { color:#38bdf8; font-weight:bold; }
 </style>
 
 </head>
 
 <body>
 
-<h2>🏏 Dream11 AI </h2>
+<h2>🏏 Dream11 AI PRO</h2>
 <p>Enter only player names (comma separated)</p>
 
 WK:<br>
@@ -53,29 +53,51 @@ Teams:
 
 <script>
 
-// 🔥 PARSE NAME ONLY
+// 🔥 PARSE PLAYER NAMES
 function parseNames(text){
     return text.split(",").map(n=>{
         return {
             name: n.trim(),
-            credit: (Math.random()*2 + 8).toFixed(1), // 8–10
-            sel: Math.floor(Math.random()*70)+20 // 20–90
+            sel: Math.floor(Math.random()*70)+20 // 20–90%
         };
     }).filter(p=>p.name);
 }
 
-// SMART PICK
-function pick(list,count,used){
+// 🌟 GLOBAL MEMORY
+let corePlayers = {};
+let capHistory = [];
+let vcHistory = [];
 
-    let res=[];
+// 🎯 ROLE BASED WEIGHT
+function roleWeight(role,pitch){
+
+    if(pitch==="batting"){
+        return role==="BAT"?1.5 : role==="AR"?1.3 : 1;
+    }
+    if(pitch==="bowling"){
+        return role==="BOWL"?1.5 : role==="AR"?1.3 : 1;
+    }
+    if(pitch==="spin"){
+        return role==="BOWL"?1.4 : role==="AR"?1.3 : 1;
+    }
+    return 1.2; // balanced
+}
+
+// 🎯 SMART PICK
+function pickPlayers(list,count,pitch,role){
+
+    let selected=[];
     let pool=[...list];
 
-    while(res.length<count && pool.length>0){
+    while(selected.length<count && pool.length>0){
 
         let weights=pool.map(p=>{
-            let diff = p.sel<40 ? 1.7 : 1;
-            let repeat = used[p.name]?0.4:1;
-            return (100-p.sel)*diff*repeat;
+
+            let diff = (100 - p.sel); // differential
+            let coreBoost = corePlayers[p.name]?1.5:1;
+            let pitchBoost = roleWeight(role,pitch);
+
+            return diff * coreBoost * pitchBoost;
         });
 
         let total=weights.reduce((a,b)=>a+b,0);
@@ -83,8 +105,10 @@ function pick(list,count,used){
 
         for(let i=0;i<pool.length;i++){
             if(r<weights[i]){
-                res.push(pool[i]);
-                used[p.name]=(used[p.name]||0)+1;
+                selected.push(pool[i]);
+
+                corePlayers[pool[i].name] = (corePlayers[pool[i].name]||0)+1;
+
                 pool.splice(i,1);
                 break;
             }
@@ -92,23 +116,64 @@ function pick(list,count,used){
         }
     }
 
-    return res;
+    return selected;
 }
 
+// 🔀 SHUFFLE
+function shuffle(arr){
+    return [...arr].sort(()=>Math.random()-0.5);
+}
+
+// 👑 CAPTAIN
+function getCaptain(team){
+
+    let sorted=[...team].sort((a,b)=>b.sel-a.sel);
+    let top=sorted.slice(0,4);
+
+    if(capHistory.length>0 && Math.random()<0.6){
+        return capHistory[Math.floor(Math.random()*capHistory.length)];
+    }
+
+    let c = top[Math.floor(Math.random()*top.length)];
+    capHistory.push(c);
+    return c;
+}
+
+// 👑 VICE
+function getVice(team,c){
+
+    let others = team.filter(p=>p.name!==c.name);
+    let sorted=[...others].sort((a,b)=>b.sel-a.sel);
+    let top=sorted.slice(0,4);
+
+    if(vcHistory.length>0 && Math.random()<0.6){
+        return vcHistory[Math.floor(Math.random()*vcHistory.length)];
+    }
+
+    let vc = top[Math.floor(Math.random()*top.length)];
+    vcHistory.push(vc);
+    return vc;
+}
+
+// 🚀 GENERATE
 function generate(){
+
+    corePlayers={};
+    capHistory=[];
+    vcHistory=[];
 
     let WK=parseNames(document.getElementById("wk").value);
     let BAT=parseNames(document.getElementById("bat").value);
     let AR=parseNames(document.getElementById("ar").value);
     let BOWL=parseNames(document.getElementById("bowl").value);
 
-    if(WK.length==0 || BAT.length==0 || AR.length==0 || BOWL.length==0){
-        alert("Enter players in all categories!");
+    if(!WK.length || !BAT.length || !AR.length || !BOWL.length){
+        alert("Enter all player categories!");
         return;
     }
 
     let pitch=document.getElementById("pitch").value;
-    let teamCount=document.getElementById("teams").value;
+    let count=document.getElementById("teams").value;
 
     let combo={
         batting:{wk:1,bat:5,ar:2,bowl:3},
@@ -120,17 +185,15 @@ function generate(){
     let c=combo[pitch];
     let output="";
 
-    for(let t=1;t<=teamCount;t++){
+    for(let i=1;i<=count;i++){
 
         let team=[];
 
-        // pick players
-        team.push(...shuffle(WK).slice(0,c.wk));
-        team.push(...shuffle(BAT).slice(0,c.bat));
-        team.push(...shuffle(AR).slice(0,c.ar));
-        team.push(...shuffle(BOWL).slice(0,c.bowl));
+        team.push(...pickPlayers(WK,c.wk,pitch,"WK"));
+        team.push(...pickPlayers(BAT,c.bat,pitch,"BAT"));
+        team.push(...pickPlayers(AR,c.ar,pitch,"AR"));
+        team.push(...pickPlayers(BOWL,c.bowl,pitch,"BOWL"));
 
-        // ensure 11 players
         let all=[...WK,...BAT,...AR,...BOWL];
 
         while(team.length<11){
@@ -140,27 +203,19 @@ function generate(){
             }
         }
 
-        // shuffle team
-        team = shuffle(team);
+        team=shuffle(team);
 
-        // captain logic
-        let captain = team[Math.floor(Math.random()*team.length)];
-        let vice = team[Math.floor(Math.random()*team.length)];
+        let captain=getCaptain(team);
+        let vice=getVice(team,captain);
 
-        while(vice.name===captain.name){
-            vice = team[Math.floor(Math.random()*team.length)];
-        }
-
-        output+=`<div class="team"><b>Team ${t}</b><br>`;
+        output+=`<div class="team"><b>Team ${i}</b><br>`;
 
         team.forEach(p=>{
-            let role="";
-            if(p.name===captain.name) role="(C)";
-            else if(p.name===vice.name) role="(VC)";
+            let tag="";
+            if(p.name===captain.name) tag=` <span class="c">(C)</span>`;
+            else if(p.name===vice.name) tag=` <span class="vc">(VC)</span>`;
 
-            output+=`<div>
-                     ${p.name} ${role}
-                     </div>`;
+            output+=`<div>${p.name}${tag}</div>`;
         });
 
         output+=`</div>`;
@@ -169,10 +224,6 @@ function generate(){
     document.getElementById("out").innerHTML=output;
 }
 
-// shuffle helper
-function shuffle(arr){
-    return [...arr].sort(()=>Math.random()-0.5);
-} 
 </script>
 
 </body>
