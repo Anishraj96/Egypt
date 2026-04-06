@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Dream11 AI PRO</title>
+<title>Dream11 GL AI Advanced</title>
 
 <style>
 body { font-family: Arial; background:#0f172a; color:white; text-align:center; }
@@ -17,20 +17,12 @@ button { padding:10px; margin:10px; border-radius:8px; background:#22c55e; color
 
 <body>
 
-<h2>🏏 Dream11 AI PRO</h2>
-<p>Enter only player names (comma separated)</p>
+<h2>🏏 Dream11 GL AI Advanced</h2>
 
-WK:<br>
-<textarea id="wk"></textarea>
-
-BAT:<br>
-<textarea id="bat"></textarea>
-
-AR:<br>
-<textarea id="ar"></textarea>
-
-BOWL:<br>
-<textarea id="bowl"></textarea>
+WK:<br><textarea id="wk"></textarea>
+BAT:<br><textarea id="bat"></textarea>
+AR:<br><textarea id="ar"></textarea>
+BOWL:<br><textarea id="bowl"></textarea>
 
 <br>
 
@@ -38,16 +30,15 @@ Pitch:
 <select id="pitch">
 <option value="batting">Batting</option>
 <option value="bowling">Bowling</option>
-<option value="balanced">Balanced</option>
 <option value="spin">Spin</option>
+<option value="balanced">Balanced</option>
 </select>
 
 Teams:
 <input type="number" id="teams" value="5" min="1" max="20">
 
 <br>
-
-<button onclick="generate()">Generate Teams</button>
+<button onclick="generate()">Generate GL Teams</button>
 
 <div id="out"></div>
 
@@ -55,64 +46,50 @@ Teams:
 
 // 🔥 PARSE
 function parseNames(text){
-    return text.split(",").map(n=>{
-        return {
-            name: n.trim(),
-            sel: Math.floor(Math.random()*70)+20
-        };
-    }).filter(p=>p.name);
+    return text.split(",")
+        .map(n=>n.trim())
+        .filter(n=>n.length>0)
+        .map(n=>({
+            name:n,
+            sel:Math.floor(Math.random()*70)+20
+        }));
 }
 
-// 🌟 GLOBAL MEMORY
-let corePlayers = {};
-let capHistory = [];
-let vcHistory = [];
+// 🌟 CORE PLAYERS STORE
+let corePool=[];
 
-// 🎯 ROLE WEIGHT
-function roleWeight(role,pitch){
-    if(pitch==="batting"){
-        return role==="BAT"?1.5 : role==="AR"?1.3 : 1;
-    }
-    if(pitch==="bowling"){
-        return role==="BOWL"?1.5 : role==="AR"?1.3 : 1;
-    }
-    if(pitch==="spin"){
-        return role==="BOWL"?1.4 : role==="AR"?1.3 : 1;
-    }
-    return 1.2;
-}
+// 🎯 SAFE PICK WITH GL LOGIC
+function pickPlayers(list,count){
 
-// 🎯 SMART PICK
-function pickPlayers(list,count,pitch,role){
+    let sorted=[...list].sort((a,b)=>b.sel-a.sel);
 
-    let selected=[];
-    let pool=[...list];
+    let safe = sorted.slice(0, Math.ceil(list.length*0.6));
+    let diff = sorted.slice(Math.ceil(list.length*0.6));
 
-    while(selected.length<count && pool.length>0){
+    let result=[];
 
-        let weights=pool.map(p=>{
-            let diff = (100 - p.sel);
-            let coreBoost = corePlayers[p.name]?1.5:1;
-            let pitchBoost = roleWeight(role,pitch);
+    for(let i=0;i<count;i++){
 
-            return diff * coreBoost * pitchBoost;
-        });
+        let useSafe = Math.random()<0.7;
+        let pool = useSafe ? safe : diff;
 
-        let total=weights.reduce((a,b)=>a+b,0);
-        let r=Math.random()*total;
+        let player = pool[Math.floor(Math.random()*pool.length)];
 
-        for(let i=0;i<pool.length;i++){
-            if(r<weights[i]){
-                selected.push(pool[i]);
-                corePlayers[pool[i].name] = (corePlayers[pool[i].name]||0)+1;
-                pool.splice(i,1);
-                break;
-            }
-            r-=weights[i];
+        // avoid duplicates
+        if(result.find(p=>p.name===player.name)){
+            i--;
+            continue;
+        }
+
+        result.push(player);
+
+        // mark core
+        if(Math.random()<0.5){
+            corePool.push(player.name);
         }
     }
 
-    return selected;
+    return result;
 }
 
 // 🔀 SHUFFLE
@@ -120,83 +97,65 @@ function shuffle(arr){
     return [...arr].sort(()=>Math.random()-0.5);
 }
 
-// 👑 CAPTAIN (FIXED)
+// 👑 CAPTAIN (safe + smart)
 function getCaptain(team){
 
     let sorted=[...team].sort((a,b)=>b.sel-a.sel);
-    let top=sorted.slice(0,5);
+    let top=sorted.slice(0,4);
 
-    // repeat only if player exists in current team
-    let repeat = capHistory.filter(c => team.find(p=>p.name===c.name));
-
-    if(repeat.length>0 && Math.random()<0.6){
-        return repeat[Math.floor(Math.random()*repeat.length)];
-    }
-
-    let c = top[Math.floor(Math.random()*top.length)];
-    capHistory.push(c);
-    return c;
+    return top[Math.floor(Math.random()*top.length)];
 }
 
-// 👑 VICE (FIXED)
+// 👑 VICE
 function getVice(team,c){
 
     let others = team.filter(p=>p.name!==c.name);
     let sorted=[...others].sort((a,b)=>b.sel-a.sel);
-    let top=sorted.slice(0,5);
+    let top=sorted.slice(0,4);
 
-    let repeat = vcHistory.filter(v => others.find(p=>p.name===v.name));
-
-    if(repeat.length>0 && Math.random()<0.6){
-        return repeat[Math.floor(Math.random()*repeat.length)];
-    }
-
-    let vc = top[Math.floor(Math.random()*top.length)];
-    vcHistory.push(vc);
-    return vc;
+    return top[Math.floor(Math.random()*top.length)];
 }
 
 // 🚀 GENERATE
 function generate(){
 
-    corePlayers={};
-    capHistory=[];
-    vcHistory=[];
+    corePool=[];
 
     let WK=parseNames(document.getElementById("wk").value);
     let BAT=parseNames(document.getElementById("bat").value);
     let AR=parseNames(document.getElementById("ar").value);
     let BOWL=parseNames(document.getElementById("bowl").value);
 
-    if(!WK.length || !BAT.length || !AR.length || !BOWL.length){
-        alert("Enter all player categories!");
+    if(!WK.length||!BAT.length||!AR.length||!BOWL.length){
+        alert("Enter all players");
         return;
     }
 
     let pitch=document.getElementById("pitch").value;
-    let count=document.getElementById("teams").value;
+    let count=parseInt(document.getElementById("teams").value);
 
     let combo={
         batting:{wk:1,bat:5,ar:2,bowl:3},
         bowling:{wk:1,bat:3,ar:2,bowl:5},
-        balanced:{wk:1,bat:4,ar:3,bowl:3},
-        spin:{wk:1,bat:3,ar:3,bowl:4}
+        spin:{wk:1,bat:3,ar:3,bowl:4},
+        balanced:{wk:1,bat:4,ar:3,bowl:3}
     };
 
     let c=combo[pitch];
     let output="";
 
-    for(let i=1;i<=count;i++){
+    for(let t=1;t<=count;t++){
 
         let team=[];
 
-        team.push(...pickPlayers(WK,c.wk,pitch,"WK"));
-        team.push(...pickPlayers(BAT,c.bat,pitch,"BAT"));
-        team.push(...pickPlayers(AR,c.ar,pitch,"AR"));
-        team.push(...pickPlayers(BOWL,c.bowl,pitch,"BOWL"));
+        team.push(...pickPlayers(WK,c.wk));
+        team.push(...pickPlayers(BAT,c.bat));
+        team.push(...pickPlayers(AR,c.ar));
+        team.push(...pickPlayers(BOWL,c.bowl));
 
         let all=[...WK,...BAT,...AR,...BOWL];
 
+        // ensure 11 players
         while(team.length<11){
             let extra=all[Math.floor(Math.random()*all.length)];
             if(!team.find(p=>p.name===extra.name)){
@@ -209,24 +168,13 @@ function generate(){
         let captain=getCaptain(team);
         let vice=getVice(team,captain);
 
-        // 🔥 SAFETY FIX (guarantee)
-        if(!captain || !team.find(p=>p.name===captain.name)){
-            captain = team[0];
-        }
+        // safety
+        if(!captain) captain=team[0];
+        if(!vice || vice.name===captain.name) vice=team[1];
 
-        if(!vice || vice.name===captain.name || !team.find(p=>p.name===vice.name)){
-            vice = team[1];
-        }
-
-        let usedNames = new Set();
-
-        output+=`<div class="team"><b>Team ${i}</b><br>`;
+        output+=`<div class="team"><b>Team ${t}</b><br>`;
 
         team.forEach(p=>{
-
-            if(usedNames.has(p.name)) return;
-            usedNames.add(p.name);
-
             let tag="";
             if(p.name===captain.name) tag=` <span class="c">(C)</span>`;
             else if(p.name===vice.name) tag=` <span class="vc">(VC)</span>`;
