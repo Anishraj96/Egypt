@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Dream11 AI Pro</title>
+<title>Dream11 AI PRO</title>
 
 <style>
 body { font-family: Arial; background:#0f172a; color:white; text-align:center; }
@@ -53,12 +53,12 @@ Teams:
 
 <script>
 
-// 🔥 PARSE PLAYER NAMES
+// 🔥 PARSE
 function parseNames(text){
     return text.split(",").map(n=>{
         return {
             name: n.trim(),
-            sel: Math.floor(Math.random()*70)+20 // 20–90%
+            sel: Math.floor(Math.random()*70)+20
         };
     }).filter(p=>p.name);
 }
@@ -68,9 +68,8 @@ let corePlayers = {};
 let capHistory = [];
 let vcHistory = [];
 
-// 🎯 ROLE BASED WEIGHT
+// 🎯 ROLE WEIGHT
 function roleWeight(role,pitch){
-
     if(pitch==="batting"){
         return role==="BAT"?1.5 : role==="AR"?1.3 : 1;
     }
@@ -80,7 +79,7 @@ function roleWeight(role,pitch){
     if(pitch==="spin"){
         return role==="BOWL"?1.4 : role==="AR"?1.3 : 1;
     }
-    return 1.2; // balanced
+    return 1.2;
 }
 
 // 🎯 SMART PICK
@@ -92,8 +91,7 @@ function pickPlayers(list,count,pitch,role){
     while(selected.length<count && pool.length>0){
 
         let weights=pool.map(p=>{
-
-            let diff = (100 - p.sel); // differential
+            let diff = (100 - p.sel);
             let coreBoost = corePlayers[p.name]?1.5:1;
             let pitchBoost = roleWeight(role,pitch);
 
@@ -106,9 +104,7 @@ function pickPlayers(list,count,pitch,role){
         for(let i=0;i<pool.length;i++){
             if(r<weights[i]){
                 selected.push(pool[i]);
-
                 corePlayers[pool[i].name] = (corePlayers[pool[i].name]||0)+1;
-
                 pool.splice(i,1);
                 break;
             }
@@ -124,14 +120,17 @@ function shuffle(arr){
     return [...arr].sort(()=>Math.random()-0.5);
 }
 
-// 👑 CAPTAIN
+// 👑 CAPTAIN (FIXED)
 function getCaptain(team){
 
     let sorted=[...team].sort((a,b)=>b.sel-a.sel);
-    let top=sorted.slice(0,4);
+    let top=sorted.slice(0,5);
 
-    if(capHistory.length>0 && Math.random()<0.6){
-        return capHistory[Math.floor(Math.random()*capHistory.length)];
+    // repeat only if player exists in current team
+    let repeat = capHistory.filter(c => team.find(p=>p.name===c.name));
+
+    if(repeat.length>0 && Math.random()<0.6){
+        return repeat[Math.floor(Math.random()*repeat.length)];
     }
 
     let c = top[Math.floor(Math.random()*top.length)];
@@ -139,15 +138,17 @@ function getCaptain(team){
     return c;
 }
 
-// 👑 VICE
+// 👑 VICE (FIXED)
 function getVice(team,c){
 
     let others = team.filter(p=>p.name!==c.name);
     let sorted=[...others].sort((a,b)=>b.sel-a.sel);
-    let top=sorted.slice(0,4);
+    let top=sorted.slice(0,5);
 
-    if(vcHistory.length>0 && Math.random()<0.6){
-        return vcHistory[Math.floor(Math.random()*vcHistory.length)];
+    let repeat = vcHistory.filter(v => others.find(p=>p.name===v.name));
+
+    if(repeat.length>0 && Math.random()<0.6){
+        return repeat[Math.floor(Math.random()*repeat.length)];
     }
 
     let vc = top[Math.floor(Math.random()*top.length)];
@@ -208,9 +209,24 @@ function generate(){
         let captain=getCaptain(team);
         let vice=getVice(team,captain);
 
+        // 🔥 SAFETY FIX (guarantee)
+        if(!captain || !team.find(p=>p.name===captain.name)){
+            captain = team[0];
+        }
+
+        if(!vice || vice.name===captain.name || !team.find(p=>p.name===vice.name)){
+            vice = team[1];
+        }
+
+        let usedNames = new Set();
+
         output+=`<div class="team"><b>Team ${i}</b><br>`;
 
         team.forEach(p=>{
+
+            if(usedNames.has(p.name)) return;
+            usedNames.add(p.name);
+
             let tag="";
             if(p.name===captain.name) tag=` <span class="c">(C)</span>`;
             else if(p.name===vice.name) tag=` <span class="vc">(VC)</span>`;
