@@ -1,329 +1,163 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Dream11 GL AI PRO</title>
-
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dream11 Elite GL AI Engine</title>
 
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial;}
-
-body{
-    background:linear-gradient(135deg,#0f172a,#020617);
-    color:#fff;
-}
-
-.container{
-    max-width:900px;
-    margin:auto;
-    padding:15px;
-}
-
-h1{
-    text-align:center;
-    margin-bottom:15px;
-    color:#22c55e;
-}
-
-.card{
-    background:#1e293b;
-    padding:15px;
-    border-radius:12px;
-    margin-bottom:12px;
-    box-shadow:0 4px 20px rgba(0,0,0,0.4);
-}
-
-label{
-    display:block;
-    margin-bottom:5px;
-    font-size:14px;
-    color:#94a3b8;
-}
-
-textarea{
-    width:100%;
-    height:60px;
-    border-radius:8px;
-    border:none;
-    padding:10px;
-    background:#0f172a;
-    color:#fff;
-}
-
-.row{
-    display:flex;
-    gap:10px;
-    flex-wrap:wrap;
-}
-
-.col{
-    flex:1;
-}
-
-select,input{
-    width:100%;
-    padding:10px;
-    border-radius:8px;
-    border:none;
-    background:#0f172a;
-    color:white;
-}
-
-button{
-    width:100%;
-    padding:12px;
-    border:none;
-    border-radius:10px;
-    background:linear-gradient(90deg,#22c55e,#16a34a);
-    color:white;
-    font-size:16px;
-    cursor:pointer;
-    margin-top:10px;
-}
-
-button:hover{
-    opacity:0.9;
-}
-
-.team{
-    background:#020617;
-    padding:12px;
-    border-radius:10px;
-    margin-top:10px;
-    border:1px solid #334155;
-}
-
-.team b{
-    color:#22c55e;
-}
-
-.player{
-    padding:5px;
-    border-bottom:1px solid #1e293b;
-}
-
-.c{color:gold;font-weight:bold;}
-.vc{color:#38bdf8;font-weight:bold;}
-
-.badge{
-    display:inline-block;
-    padding:3px 8px;
-    border-radius:6px;
-    font-size:12px;
-    margin-left:5px;
-}
-
-.core{background:#22c55e;}
-.diff{background:#ef4444;}
-
+body{font-family:Arial;background:#0f172a;color:#fff;padding:20px}
+h1{text-align:center}
+textarea,select,button{padding:12px;margin:6px 0;width:100%;border-radius:8px;border:none}
+button{background:#22c55e;color:#000;font-weight:bold;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:15px;margin-top:15px}
+.card{background:#1e293b;padding:12px;border-radius:12px}
+.error{background:#ef4444;padding:10px;border-radius:8px;margin-top:10px}
+.badge{padding:3px 6px;border-radius:6px;font-size:12px;margin-left:5px}
+.safe{background:#22c55e;color:#000}
+.mid{background:#facc15;color:#000}
+.diff{background:#ef4444}
 </style>
-
 </head>
 
 <body>
 
-<div class="container">
+<h1>🔥 Dream11 Elite GL AI Engine</h1>
 
-<h1>🏏 Dream11 GL AI PRO</h1>
+<textarea id="input" rows="8" placeholder="Name, Role, Team, Credit, Selection%"></textarea>
 
-<div class="card">
-<label>WK</label>
-<textarea id="wk"></textarea>
-
-<label>BAT</label>
-<textarea id="bat"></textarea>
-
-<label>AR</label>
-<textarea id="ar"></textarea>
-
-<label>BOWL</label>
-<textarea id="bowl"></textarea>
-</div>
-
-<div class="card row">
-<div class="col">
-<label>Pitch</label>
-<select id="pitch">
-<option value="batting">Batting</option>
-<option value="bowling">Bowling</option>
-<option value="spin">Spin</option>
-<option value="balanced">Balanced</option>
+<select id="risk">
+<option value="safe">Safe</option>
+<option value="medium">Medium</option>
+<option value="high">High Risk</option>
 </select>
-</div>
 
-<div class="col">
-<label>No. of Teams</label>
-<input type="number" id="teams" value="5" min="1" max="20">
-</div>
-</div>
+<button onclick="generateTeams()">Generate Elite GL Teams</button>
 
-<button onclick="generate()">🚀 Generate GL Teams</button>
-
-<div id="out"></div>
-
-</div>
+<div id="error"></div>
+<div id="output" class="grid"></div>
 
 <script>
 
-// GLOBAL
 let exposure = {};
-let usedCombos = new Set();
+let captainExposure = {};
 
-// PARSE
-function parseNames(text){
-    return text.split(",")
-    .map(n=>n.trim())
-    .filter(n=>n)
-    .map(n=>({
-        name:n,
-        sel:Math.floor(Math.random()*70)+20
-    }));
+function parsePlayers(input){
+return input.split("\n").map(l=>{
+let [name,role,team,credit,sel]=l.split(",");
+return {name:name?.trim(),role:role?.trim(),team:team?.trim(),credit:+credit||8,sel:+sel||50};
+}).filter(p=>p.name);
 }
 
-// PICK
-function pickPlayers(list,count){
+function shuffle(a){return [...a].sort(()=>0.5-Math.random())}
+function getByRole(p,r){return p.filter(x=>x.role===r)}
+function totalCredits(t){return t.reduce((s,p)=>s+p.credit,0)}
 
-    let sorted=[...list].sort((a,b)=>b.sel-a.sel);
+function showError(msg){document.getElementById("error").innerHTML=`<div class="error">${msg}</div>`}
+function clearError(){document.getElementById("error").innerHTML=""}
 
-    let safe = sorted.slice(0, Math.ceil(list.length*0.6));
-    let diff = sorted.slice(Math.ceil(list.length*0.6));
-
-    let result=[];
-
-    for(let i=0;i<count;i++){
-
-        let useSafe = Math.random()<0.55;
-        let pool = useSafe ? safe : diff;
-
-        let player = pool[Math.floor(Math.random()*pool.length)];
-
-        if(result.find(p=>p.name===player.name)){
-            i--;
-            continue;
-        }
-
-        if(!exposure[player.name]) exposure[player.name]=0;
-
-        if(exposure[player.name] > 3 && Math.random()<0.7){
-            i--;
-            continue;
-        }
-
-        exposure[player.name]++;
-        result.push(player);
-    }
-
-    return result;
+function validate(players){
+if(players.filter(p=>p.role==='WK').length<1){showError("Add WK");return false}
+if(new Set(players.map(p=>p.team)).size<2){showError("Add 2 teams");return false}
+clearError();return true;
 }
 
-// SHUFFLE
-function shuffle(arr){
-    return [...arr].sort(()=>Math.random()-0.5);
+function isValid(t){
+let c={WK:0,BAT:0,AR:0,BOWL:0},tc={};
+t.forEach(p=>{c[p.role]++;tc[p.team]=(tc[p.team]||0)+1});
+return t.length===11 && c.WK>=1 && c.BAT>=3 && c.AR>=1 && c.BOWL>=3 && Math.max(...Object.values(tc))<=7 && totalCredits(t)<=100;
 }
 
-// CAPTAIN
-function getCaptain(team){
-    let sorted=[...team].sort((a,b)=>b.sel-a.sel);
-    let pools=[sorted.slice(0,2),sorted.slice(2,6),sorted.slice(6)];
-    let weights=[0.5,0.3,0.2];
+function canPick(p){return (exposure[p.name]||0)<4}
+function updateExposure(t){t.forEach(p=>exposure[p.name]=(exposure[p.name]||0)+1)}
 
-    let r=Math.random();
-    let pool = r<weights[0]?pools[0]:r<weights[0]+weights[1]?pools[1]:pools[2];
+// 🔥 NEW AI PICK (less repetitive)
+function smartPick(players,count,risk){
+let pool=[...players];
 
-    return pool[Math.floor(Math.random()*pool.length)];
+// weight = selection inverse + exposure inverse
+pool.forEach(p=>{
+p.weight = (risk==='high' ? (100-p.sel) : p.sel) + (5 - (exposure[p.name]||0))*10;
+});
+
+pool.sort((a,b)=>b.weight-a.weight);
+
+return shuffle(pool).filter(canPick).slice(0,count);
 }
 
-// VICE
-function getVice(team,c){
-    let others = team.filter(p=>p.name!==c.name);
-    let sorted=[...others].sort((a,b)=>b.sel-a.sel);
-    let pools=[sorted.slice(0,3),sorted.slice(3,7),sorted.slice(7)];
-    let weights=[0.4,0.35,0.25];
+// 🔥 NEW C/VC logic (anti-repeat)
+function chooseCaptain(team,risk){
+let sorted=[...team];
 
-    let r=Math.random();
-    let pool = r<weights[0]?pools[0]:r<weights[0]+weights[1]?pools[1]:pools[2];
+sorted.forEach(p=>{
+p.cWeight = (risk==='high' ? (100-p.sel) : p.sel) - (captainExposure[p.name]||0)*20;
+});
 
-    return pool[Math.floor(Math.random()*pool.length)];
+sorted.sort((a,b)=>b.cWeight-a.cWeight);
+let cap=sorted[0];
+captainExposure[cap.name]=(captainExposure[cap.name]||0)+1;
+return cap;
 }
 
-// GENERATE
-function generate(){
-
-    exposure={};
-    usedCombos=new Set();
-
-    let WK=parseNames(wk.value);
-    let BAT=parseNames(bat.value);
-    let AR=parseNames(ar.value);
-    let BOWL=parseNames(bowl.value);
-
-    if(!WK.length||!BAT.length||!AR.length||!BOWL.length){
-        alert("Enter all players");
-        return;
-    }
-
-    let pitch=pitchSel();
-    let count=parseInt(teams.value);
-
-    let combo={
-        batting:{wk:1,bat:5,ar:2,bowl:3},
-        bowling:{wk:1,bat:3,ar:2,bowl:5},
-        spin:{wk:1,bat:3,ar:3,bowl:4},
-        balanced:{wk:1,bat:4,ar:3,bowl:3}
-    };
-
-    let c=combo[pitch];
-    let outHTML="";
-
-    for(let t=1;t<=count;t++){
-
-        let team=[];
-
-        team.push(...pickPlayers(WK,c.wk));
-        team.push(...pickPlayers(BAT,c.bat));
-        team.push(...pickPlayers(AR,c.ar));
-        team.push(...pickPlayers(BOWL,c.bowl));
-
-        let all=[...WK,...BAT,...AR,...BOWL];
-
-        while(team.length<11){
-            let extra=all[Math.floor(Math.random()*all.length)];
-            if(!team.find(p=>p.name===extra.name)){
-                team.push(extra);
-            }
-        }
-
-        team=shuffle(team);
-
-        let captain=getCaptain(team);
-        let vice=getVice(team,captain);
-
-        let key=captain.name+"-"+vice.name;
-
-        if(usedCombos.has(key)){ t--; continue; }
-        usedCombos.add(key);
-
-        outHTML+=`<div class="team"><b>Team ${t}</b>`;
-
-        team.forEach(p=>{
-            let tag="";
-            let badge = p.sel>60?`<span class="badge core">Core</span>`:`<span class="badge diff">Diff</span>`;
-
-            if(p.name===captain.name) tag=` <span class="c">(C)</span>`;
-            else if(p.name===vice.name) tag=` <span class="vc">(VC)</span>`;
-
-            outHTML+=`<div class="player">${p.name}${tag} ${badge}</div>`;
-        });
-
-        outHTML+=`</div>`;
-    }
-
-    out.innerHTML=outHTML;
+function chooseVC(team,cap){
+let pool=team.filter(p=>p.name!==cap.name);
+return pool[Math.floor(Math.random()*pool.length)] || cap;
 }
 
-// GET PITCH
-function pitchSel(){
-    return document.getElementById("pitch").value;
+function tag(p){
+if(p.sel>70) return '<span class="badge safe">SAFE</span>';
+if(p.sel<30) return '<span class="badge diff">DIFF</span>';
+return '<span class="badge mid">MID</span>';
+}
+
+function generateTeams(){
+let players=parsePlayers(document.getElementById('input').value);
+let risk=document.getElementById('risk').value;
+let out=document.getElementById('output');
+
+out.innerHTML="";
+exposure={};
+captainExposure={};
+
+if(!validate(players)) return;
+
+for(let i=0;i<10;i++){
+let tries=0,team=[];
+
+while(tries<100){
+let wk=smartPick(getByRole(players,'WK'),1,risk);
+let bat=smartPick(getByRole(players,'BAT'),4,risk);
+let ar=smartPick(getByRole(players,'AR'),2,risk);
+let bowl=smartPick(getByRole(players,'BOWL'),4,risk);
+
+team=[...wk,...bat,...ar,...bowl];
+team=[...new Map(team.map(p=>[p.name,p])).values()];
+
+let remaining=shuffle(players).filter(p=>!team.find(x=>x.name===p.name));
+while(team.length<11 && remaining.length){team.push(remaining.pop());}
+
+if(isValid(team)) break;
+tries++;
+}
+
+if(team.length!==11) continue;
+
+let captain=chooseCaptain(team,risk);
+let vc=chooseVC(team,captain);
+
+updateExposure(team);
+
+let div=document.createElement('div');
+div.className='card';
+
+div.innerHTML=`<h3>GL Team ${i+1}</h3>`+
+team.map(p=>`<div>${p.name} (${p.role}) ${tag(p)}</div>`).join('')+
+`<p><b>C:</b> ${captain.name}</p>`+
+`<p><b>VC:</b> ${vc.name}</p>`+
+`<p>Total Credit: ${totalCredits(team).toFixed(1)}</p>`;
+
+out.appendChild(div);
+}
 }
 
 </script>
