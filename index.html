@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dream11 Elite GL AI Engine</title>
+<title>Dream11 Elite GL AI Engine PRO</title>
 
 <style>
 body{font-family:Arial;background:#0f172a;color:#fff;padding:20px}
@@ -12,7 +12,6 @@ textarea,select,button{padding:12px;margin:6px 0;width:100%;border-radius:8px;bo
 button{background:#22c55e;color:#000;font-weight:bold;cursor:pointer}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:15px;margin-top:15px}
 .card{background:#1e293b;padding:12px;border-radius:12px}
-.error{background:#ef4444;padding:10px;border-radius:8px;margin-top:10px}
 .badge{padding:3px 6px;border-radius:6px;font-size:12px;margin-left:5px}
 .safe{background:#22c55e;color:#000}
 .mid{background:#facc15;color:#000}
@@ -22,9 +21,9 @@ button{background:#22c55e;color:#000;font-weight:bold;cursor:pointer}
 
 <body>
 
-<h1>🔥 Dream11 Elite GL AI Engine</h1>
+<h1>🔥 Dream11 Elite GL AI Engine PRO</h1>
 
-<textarea id="input" rows="8" placeholder="Name, Role, Team, Credit, Selection%"></textarea>
+<textarea id="input" rows="8" placeholder="Name, Role, Team, Credit, Selection%, FormPoints"></textarea>
 
 <select id="risk">
 <option value="safe">Safe</option>
@@ -32,9 +31,20 @@ button{background:#22c55e;color:#000;font-weight:bold;cursor:pointer}
 <option value="high">High Risk</option>
 </select>
 
+<select id="pitch">
+<option value="batting">Batting Pitch</option>
+<option value="bowling">Bowling Pitch</option>
+<option value="spin">Spin Pitch</option>
+<option value="pace">Pace Pitch</option>
+</select>
+
+<select id="toss">
+<option value="bat">Bat First</option>
+<option value="bowl">Bowl First</option>
+</select>
+
 <button onclick="generateTeams()">Generate Elite GL Teams</button>
 
-<div id="error"></div>
 <div id="output" class="grid"></div>
 
 <script>
@@ -42,125 +52,144 @@ button{background:#22c55e;color:#000;font-weight:bold;cursor:pointer}
 let exposure = {};
 let captainExposure = {};
 
+// Parse input
 function parsePlayers(input){
 return input.split("\n").map(l=>{
-let [name,role,team,credit,sel]=l.split(",");
-return {name:name?.trim(),role:role?.trim(),team:team?.trim(),credit:+credit||8,sel:+sel||50};
+let [name,role,team,credit,sel,form]=l.split(",");
+return {
+name:name?.trim(),
+role:role?.trim(),
+team:team?.trim(),
+credit:+credit||8,
+sel:+sel||50,
+form:+form||30,
+battingOrder: Math.floor(Math.random()*6)+1,
+bowlingOvers: Math.random()*4
+};
 }).filter(p=>p.name);
 }
 
-function shuffle(a){return [...a].sort(()=>0.5-Math.random())}
-function getByRole(p,r){return p.filter(x=>x.role===r)}
-function totalCredits(t){return t.reduce((s,p)=>s+p.credit,0)}
-
-function showError(msg){document.getElementById("error").innerHTML=`<div class="error">${msg}</div>`}
-function clearError(){document.getElementById("error").innerHTML=""}
-
-function validate(players){
-if(players.filter(p=>p.role==='WK').length<1){showError("Add WK");return false}
-if(new Set(players.map(p=>p.team)).size<2){showError("Add 2 teams");return false}
-clearError();return true;
-}
-
+// Validation
 function isValid(t){
 let c={WK:0,BAT:0,AR:0,BOWL:0},tc={};
 t.forEach(p=>{c[p.role]++;tc[p.team]=(tc[p.team]||0)+1});
-return t.length===11 && c.WK>=1 && c.BAT>=3 && c.AR>=1 && c.BOWL>=3 && Math.max(...Object.values(tc))<=7 && totalCredits(t)<=100;
+return t.length===11 && c.WK>=1 && c.BAT>=3 && c.AR>=1 && c.BOWL>=3 && Math.max(...Object.values(tc))<=7;
 }
 
-function canPick(p){return (exposure[p.name]||0)<4}
-function updateExposure(t){t.forEach(p=>exposure[p.name]=(exposure[p.name]||0)+1)}
+// Pitch Boost
+function applyPitch(players,pitch){
+players.forEach(p=>{
+p.pitchBoost=0;
+if(pitch==='batting' && p.role==='BAT') p.pitchBoost+=10;
+if(pitch==='bowling' && p.role==='BOWL') p.pitchBoost+=12;
+if(pitch==='spin' && p.role==='BOWL') p.pitchBoost+=10;
+if(pitch==='pace' && p.role==='BOWL') p.pitchBoost+=10;
+});
+}
 
-// 🔥 NEW AI PICK (less repetitive)
+// Toss Boost
+function applyToss(players,toss){
+players.forEach(p=>{
+p.tossBoost=0;
+if(toss==='bat' && p.battingOrder<=3) p.tossBoost+=12;
+if(toss==='bowl' && p.role==='BOWL') p.tossBoost+=10;
+});
+}
+
+// Final Score
+function calcScore(p,risk){
+let base = (risk==='high')
+? (100-p.sel)*0.4 + p.form*0.6
+: p.form*0.7 + p.sel*0.3;
+
+let roleBoost=0;
+if(p.role==='AR') roleBoost+=15;
+if(p.role==='BAT' && p.battingOrder<=3) roleBoost+=10;
+if(p.role==='BOWL' && p.bowlingOvers>=2) roleBoost+=10;
+
+return base + roleBoost + (p.pitchBoost||0) + (p.tossBoost||0);
+}
+
+// Smart Pick
 function smartPick(players,count,risk){
-let pool=[...players];
-
-// weight = selection inverse + exposure inverse
-pool.forEach(p=>{
-p.weight = (risk==='high' ? (100-p.sel) : p.sel) + (5 - (exposure[p.name]||0))*10;
+players.forEach(p=>{
+p.score = calcScore(p,risk) - (exposure[p.name]||0)*10;
 });
-
-pool.sort((a,b)=>b.weight-a.weight);
-
-return shuffle(pool).filter(canPick).slice(0,count);
+players.sort((a,b)=>b.score-a.score);
+return players.slice(0,count);
 }
 
-// 🔥 NEW C/VC logic (anti-repeat)
+// Captain
 function chooseCaptain(team,risk){
-let sorted=[...team];
-
-sorted.forEach(p=>{
-p.cWeight = (risk==='high' ? (100-p.sel) : p.sel) - (captainExposure[p.name]||0)*20;
+team.forEach(p=>{
+p.cScore = p.score*(risk==='high'?1.4:1.2) + (100-p.sel)*0.3 - (captainExposure[p.name]||0)*20;
 });
-
-sorted.sort((a,b)=>b.cWeight-a.cWeight);
-let cap=sorted[0];
+team.sort((a,b)=>b.cScore-a.cScore);
+let cap=team[0];
 captainExposure[cap.name]=(captainExposure[cap.name]||0)+1;
 return cap;
 }
 
 function chooseVC(team,cap){
-let pool=team.filter(p=>p.name!==cap.name);
-return pool[Math.floor(Math.random()*pool.length)] || cap;
+return team.find(p=>p.name!==cap.name);
 }
 
-function tag(p){
-if(p.sel>70) return '<span class="badge safe">SAFE</span>';
-if(p.sel<30) return '<span class="badge diff">DIFF</span>';
-return '<span class="badge mid">MID</span>';
-}
-
+// Generate Teams
 function generateTeams(){
-let players=parsePlayers(document.getElementById('input').value);
-let risk=document.getElementById('risk').value;
-let out=document.getElementById('output');
 
+let players=parsePlayers(document.getElementById("input").value);
+let risk=document.getElementById("risk").value;
+let pitch=document.getElementById("pitch").value;
+let toss=document.getElementById("toss").value;
+
+applyPitch(players,pitch);
+applyToss(players,toss);
+
+let out=document.getElementById("output");
 out.innerHTML="";
-exposure={};
-captainExposure={};
-
-if(!validate(players)) return;
+exposure={}; captainExposure={};
 
 for(let i=0;i<10;i++){
-let tries=0,team=[];
 
-while(tries<100){
-let wk=smartPick(getByRole(players,'WK'),1,risk);
-let bat=smartPick(getByRole(players,'BAT'),4,risk);
-let ar=smartPick(getByRole(players,'AR'),2,risk);
-let bowl=smartPick(getByRole(players,'BOWL'),4,risk);
+let team=[
+...smartPick(players.filter(p=>p.role==='WK'),1,risk),
+...smartPick(players.filter(p=>p.role==='BAT'),4,risk),
+...smartPick(players.filter(p=>p.role==='AR'),2,risk),
+...smartPick(players.filter(p=>p.role==='BOWL'),4,risk)
+];
 
-team=[...wk,...bat,...ar,...bowl];
+// ensure 11 unique
 team=[...new Map(team.map(p=>[p.name,p])).values()];
 
-let remaining=shuffle(players).filter(p=>!team.find(x=>x.name===p.name));
-while(team.length<11 && remaining.length){team.push(remaining.pop());}
-
-if(isValid(team)) break;
-tries++;
+// fill properly (no random)
+let remaining=[...players].sort((a,b)=>b.form-a.form);
+while(team.length<11){
+let p=remaining.shift();
+if(!team.find(x=>x.name===p.name)) team.push(p);
 }
 
-if(team.length!==11) continue;
+if(!isValid(team)) continue;
 
-let captain=chooseCaptain(team,risk);
-let vc=chooseVC(team,captain);
+// update exposure
+team.forEach(p=>exposure[p.name]=(exposure[p.name]||0)+1);
 
-updateExposure(team);
+// captain
+let cap=chooseCaptain(team,risk);
+let vc=chooseVC(team,cap);
 
-let div=document.createElement('div');
-div.className='card';
+// render
+let div=document.createElement("div");
+div.className="card";
 
-div.innerHTML=`<h3>GL Team ${i+1}</h3>`+
-team.map(p=>`<div>${p.name} (${p.role}) ${tag(p)}</div>`).join('')+
-`<p><b>C:</b> ${captain.name}</p>`+
-`<p><b>VC:</b> ${vc.name}</p>`+
-`<p>Total Credit: ${totalCredits(team).toFixed(1)}</p>`;
+div.innerHTML=`<h3>Team ${i+1}</h3>`+
+team.map(p=>`<div>${p.name} (${p.role})</div>`).join("")+
+`<p><b>C:</b> ${cap.name}</p>`+
+`<p><b>VC:</b> ${vc.name}</p>`;
 
 out.appendChild(div);
 }
 }
 
 </script>
-
 </body>
 </html>
