@@ -1,195 +1,286 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
+<title>Dream11 GL AI Ultimate PRO</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dream11 Elite GL AI Engine PRO</title>
 
 <style>
-body{font-family:Arial;background:#0f172a;color:#fff;padding:20px}
-h1{text-align:center}
-textarea,select,button{padding:12px;margin:6px 0;width:100%;border-radius:8px;border:none}
-button{background:#22c55e;color:#000;font-weight:bold;cursor:pointer}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:15px;margin-top:15px}
-.card{background:#1e293b;padding:12px;border-radius:12px}
-.badge{padding:3px 6px;border-radius:6px;font-size:12px;margin-left:5px}
-.safe{background:#22c55e;color:#000}
-.mid{background:#facc15;color:#000}
-.diff{background:#ef4444}
+body{background:#020617;color:#fff;font-family:Arial;padding:10px;}
+.container{max-width:1000px;margin:auto;}
+h2{text-align:center;color:#22c55e;}
+
+.card{
+background:#1e293b;
+padding:12px;
+border-radius:10px;
+margin-bottom:10px;
+}
+
+textarea{
+width:100%;height:60px;margin:5px 0;
+border-radius:8px;border:none;padding:8px;background:#020617;color:white;
+}
+
+select,input{
+width:100%;padding:8px;margin:5px 0;border-radius:8px;border:none;background:#020617;color:white;
+}
+
+button{
+width:100%;padding:12px;background:#22c55e;border:none;border-radius:10px;font-size:16px;
+}
+
+.team{background:#020617;padding:10px;margin-top:10px;border-radius:10px;}
+.c{color:gold;font-weight:bold;}
+.vc{color:#38bdf8;font-weight:bold;}
 </style>
+
 </head>
 
 <body>
 
-<h1>🔥 Dream11 Elite GL AI Engine PRO</h1>
+<div class="container">
 
-<textarea id="input" rows="8" placeholder="Name, Role, Team, Credit, Selection%, FormPoints"></textarea>
+<h2>🏏 Dream11 GL AI Ultimate PRO</h2>
 
-<select id="risk">
-<option value="safe">Safe</option>
-<option value="medium">Medium</option>
-<option value="high">High Risk</option>
-</select>
+<div class="card">
+<b>TEAM A</b>
+WK<textarea id="a_wk"></textarea>
+BAT<textarea id="a_bat"></textarea>
+AR<textarea id="a_ar"></textarea>
+BOWL<textarea id="a_bowl"></textarea>
+</div>
 
+<div class="card">
+<b>TEAM B</b>
+WK<textarea id="b_wk"></textarea>
+BAT<textarea id="b_bat"></textarea>
+AR<textarea id="b_ar"></textarea>
+BOWL<textarea id="b_bowl"></textarea>
+</div>
+
+<div class="card">
+<label>Pitch Type</label>
 <select id="pitch">
-<option value="batting">Batting Pitch</option>
-<option value="bowling">Bowling Pitch</option>
-<option value="spin">Spin Pitch</option>
-<option value="pace">Pace Pitch</option>
+<option value="bat">Batting</option>
+<option value="bowl">Bowling</option>
+<option value="spin">Spin</option>
+<option value="balanced">Balanced</option>
 </select>
 
+<label>Toss Winner</label>
 <select id="toss">
-<option value="bat">Bat First</option>
-<option value="bowl">Bowl First</option>
+<option value="A">Team A</option>
+<option value="B">Team B</option>
 </select>
 
-<button onclick="generateTeams()">Generate Elite GL Teams</button>
+<label>Decision</label>
+<select id="decision">
+<option value="bat">Batting</option>
+<option value="bowl">Bowling</option>
+</select>
 
-<div id="output" class="grid"></div>
+<label>No. of Teams</label>
+<input type="number" id="teams" value="5" min="1" max="20">
+</div>
+
+<button onclick="generate()">🚀 Generate GL Teams</button>
+
+<div id="out"></div>
+
+</div>
 
 <script>
 
-let exposure = {};
-let captainExposure = {};
+let usedCombos = new Set();
+let usedTeams = new Set();
 
-// Parse input
-function parsePlayers(input){
-return input.split("\n").map(l=>{
-let [name,role,team,credit,sel,form]=l.split(",");
-return {
-name:name?.trim(),
-role:role?.trim(),
-team:team?.trim(),
-credit:+credit||8,
-sel:+sel||50,
-form:+form||30,
-battingOrder: Math.floor(Math.random()*6)+1,
-bowlingOvers: Math.random()*4
-};
-}).filter(p=>p.name);
+// PARSE
+function parse(text, team, role){
+return text.split(",")
+.map(x=>x.trim())
+.filter(x=>x)
+.map(x=>({
+name:x,
+team:team,
+role:role,
+sel:Math.random(),
+used:0
+}));
 }
 
-// Validation
-function isValid(t){
-let c={WK:0,BAT:0,AR:0,BOWL:0},tc={};
-t.forEach(p=>{c[p.role]++;tc[p.team]=(tc[p.team]||0)+1});
-return t.length===11 && c.WK>=1 && c.BAT>=3 && c.AR>=1 && c.BOWL>=3 && Math.max(...Object.values(tc))<=7;
+// ROLE FILTER
+function roleFilter(pool,role){
+return pool.filter(p=>p.role===role);
 }
 
-// Pitch Boost
-function applyPitch(players,pitch){
-players.forEach(p=>{
-p.pitchBoost=0;
-if(pitch==='batting' && p.role==='BAT') p.pitchBoost+=10;
-if(pitch==='bowling' && p.role==='BOWL') p.pitchBoost+=12;
-if(pitch==='spin' && p.role==='BOWL') p.pitchBoost+=10;
-if(pitch==='pace' && p.role==='BOWL') p.pitchBoost+=10;
-});
+// SMART PICK (LOW USED FIRST)
+function pickSmart(list,count,used){
+let sorted=[...list].sort((a,b)=>a.used-b.used);
+let res=[];
+
+for(let p of sorted){
+if(res.length===count) break;
+if(!used.has(p.name)){
+used.add(p.name);
+p.used++;
+res.push(p);
+}
+}
+return res;
 }
 
-// Toss Boost
-function applyToss(players,toss){
-players.forEach(p=>{
-p.tossBoost=0;
-if(toss==='bat' && p.battingOrder<=3) p.tossBoost+=12;
-if(toss==='bowl' && p.role==='BOWL') p.tossBoost+=10;
-});
+// VALIDATE DREAM11 RULES
+function validate(team){
+let countA = team.filter(p=>p.team==="A").length;
+let countB = team.filter(p=>p.team==="B").length;
+
+if(countA>7 || countB>7) return false;
+
+let wk = team.filter(p=>p.role==="WK").length;
+let bat = team.filter(p=>p.role==="BAT").length;
+let ar = team.filter(p=>p.role==="AR").length;
+let bowl = team.filter(p=>p.role==="BOWL").length;
+
+if(wk<1 || bat<3 || ar<1 || bowl<3) return false;
+
+return true;
 }
 
-// Final Score
-function calcScore(p,risk){
-let base = (risk==='high')
-? (100-p.sel)*0.4 + p.form*0.6
-: p.form*0.7 + p.sel*0.3;
-
-let roleBoost=0;
-if(p.role==='AR') roleBoost+=15;
-if(p.role==='BAT' && p.battingOrder<=3) roleBoost+=10;
-if(p.role==='BOWL' && p.bowlingOvers>=2) roleBoost+=10;
-
-return base + roleBoost + (p.pitchBoost||0) + (p.tossBoost||0);
+// UNIQUE TEAM CHECK
+function isUnique(team){
+let names = team.map(p=>p.name).sort().join("-");
+if(usedTeams.has(names)) return false;
+usedTeams.add(names);
+return true;
 }
 
-// Smart Pick
-function smartPick(players,count,risk){
-players.forEach(p=>{
-p.score = calcScore(p,risk) - (exposure[p.name]||0)*10;
-});
-players.sort((a,b)=>b.score-a.score);
-return players.slice(0,count);
+// SMART CAPTAIN
+function getCaptain(team){
+let sorted=[...team].sort((a,b)=>b.sel-a.sel);
+return sorted[Math.floor(Math.random()*5)];
 }
 
-// Captain
-function chooseCaptain(team,risk){
-team.forEach(p=>{
-p.cScore = p.score*(risk==='high'?1.4:1.2) + (100-p.sel)*0.3 - (captainExposure[p.name]||0)*20;
-});
-team.sort((a,b)=>b.cScore-a.cScore);
-let cap=team[0];
-captainExposure[cap.name]=(captainExposure[cap.name]||0)+1;
-return cap;
+// SMART VICE CAPTAIN
+function getVice(team,c){
+let others=team.filter(p=>p.name!==c.name);
+return others[Math.floor(Math.random()*5)];
 }
 
-function chooseVC(team,cap){
-return team.find(p=>p.name!==cap.name);
-}
+// MAIN GENERATE
+function generate(){
 
-// Generate Teams
-function generateTeams(){
+usedCombos.clear();
+usedTeams.clear();
 
-let players=parsePlayers(document.getElementById("input").value);
-let risk=document.getElementById("risk").value;
-let pitch=document.getElementById("pitch").value;
-let toss=document.getElementById("toss").value;
-
-applyPitch(players,pitch);
-applyToss(players,toss);
-
-let out=document.getElementById("output");
-out.innerHTML="";
-exposure={}; captainExposure={};
-
-for(let i=0;i<10;i++){
-
-let team=[
-...smartPick(players.filter(p=>p.role==='WK'),1,risk),
-...smartPick(players.filter(p=>p.role==='BAT'),4,risk),
-...smartPick(players.filter(p=>p.role==='AR'),2,risk),
-...smartPick(players.filter(p=>p.role==='BOWL'),4,risk)
+let A=[
+...parse(a_wk.value,"A","WK"),
+...parse(a_bat.value,"A","BAT"),
+...parse(a_ar.value,"A","AR"),
+...parse(a_bowl.value,"A","BOWL")
 ];
 
-// ensure 11 unique
-team=[...new Map(team.map(p=>[p.name,p])).values()];
+let B=[
+...parse(b_wk.value,"B","WK"),
+...parse(b_bat.value,"B","BAT"),
+...parse(b_ar.value,"B","AR"),
+...parse(b_bowl.value,"B","BOWL")
+];
 
-// fill properly (no random)
-let remaining=[...players].sort((a,b)=>b.form-a.form);
+if(!A.length||!B.length){
+alert("Enter players");
+return;
+}
+
+let pitch=document.getElementById("pitch").value;
+let toss=document.getElementById("toss").value;
+let decision=document.getElementById("decision").value;
+let total=parseInt(document.getElementById("teams").value);
+
+let strong = decision==="bat" ? toss : (toss==="A"?"B":"A");
+let weak = strong==="A"?"B":"A";
+
+let roleCombo={
+bat:{wk:1,bat:5,ar:2,bowl:3},
+bowl:{wk:1,bat:3,ar:2,bowl:5},
+spin:{wk:1,bat:3,ar:3,bowl:4},
+balanced:{wk:1,bat:4,ar:3,bowl:3}
+};
+
+let rc=roleCombo[pitch];
+
+let outHTML="";
+
+for(let t=1;t<=total;t++){
+
+let attempts=0;
+
+while(attempts<60){
+
+attempts++;
+
+let used=new Set();
+let team=[];
+
+// GL SPLIT VARIATION
+let splits=[[7,4],[6,5],[5,6]];
+let [strongCount,weakCount]=splits[Math.floor(Math.random()*splits.length)];
+
+let strongPool = strong==="A"?A:B;
+let weakPool = weak==="A"?A:B;
+
+// PICK PLAYERS
+team.push(...pickSmart(roleFilter(strongPool,"WK"),rc.wk,used));
+team.push(...pickSmart(roleFilter(strongPool,"BAT"),Math.ceil(rc.bat*0.6),used));
+team.push(...pickSmart(roleFilter(strongPool,"AR"),Math.ceil(rc.ar*0.6),used));
+team.push(...pickSmart(roleFilter(strongPool,"BOWL"),Math.ceil(rc.bowl*0.6),used));
+
+team.push(...pickSmart(roleFilter(weakPool,"BAT"),rc.bat - Math.ceil(rc.bat*0.6),used));
+team.push(...pickSmart(roleFilter(weakPool,"AR"),rc.ar - Math.ceil(rc.ar*0.6),used));
+team.push(...pickSmart(roleFilter(weakPool,"BOWL"),rc.bowl - Math.ceil(rc.bowl*0.6),used));
+
+// FILL REMAINING
+let all=[...A,...B];
 while(team.length<11){
-let p=remaining.shift();
-if(!team.find(x=>x.name===p.name)) team.push(p);
+let p=all[Math.floor(Math.random()*all.length)];
+if(!used.has(p.name)){
+used.add(p.name);
+p.used++;
+team.push(p);
+}
 }
 
-if(!isValid(team)) continue;
+// VALIDATION
+if(!validate(team)) continue;
+if(!isUnique(team)) continue;
 
-// update exposure
-team.forEach(p=>exposure[p.name]=(exposure[p.name]||0)+1);
+// CAPTAIN / VC
+let c=getCaptain(team);
+let vc=getVice(team,c);
 
-// captain
-let cap=chooseCaptain(team,risk);
-let vc=chooseVC(team,cap);
+let key=c.name+"-"+vc.name;
+if(usedCombos.has(key)) continue;
+usedCombos.add(key);
 
-// render
-let div=document.createElement("div");
-div.className="card";
+// OUTPUT
+outHTML+=`<div class="team"><b>Team ${t}</b>`;
 
-div.innerHTML=`<h3>Team ${i+1}</h3>`+
-team.map(p=>`<div>${p.name} (${p.role})</div>`).join("")+
-`<p><b>C:</b> ${cap.name}</p>`+
-`<p><b>VC:</b> ${vc.name}</p>`;
+team.forEach(p=>{
+let tag="";
+if(p.name===c.name) tag=` <span class="c">(C)</span>`;
+else if(p.name===vc.name) tag=` <span class="vc">(VC)</span>`;
 
-out.appendChild(div);
+outHTML+=`<div>${p.name} [${p.team}-${p.role}] ${tag}</div>`;
+});
+
+outHTML+=`</div>`;
+break;
 }
+}
+
+document.getElementById("out").innerHTML=outHTML;
 }
 
 </script>
+
 </body>
 </html>
