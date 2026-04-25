@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Dream11 GL AI PRO - Advanced</title>
+<title>Dream11 GL AI PRO - Ultimate</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -55,7 +55,7 @@ border:1px solid #1e293b;
 
 <div class="container">
 
-<h2>🏏 Dream11 GL AI PRO (Advanced)</h2>
+<h2>🏏 Dream11 GL AI PRO (Ultimate)</h2>
 
 <div class="card">
 <b>TEAM A (use tags: wk/bat/ar/bowl)</b>
@@ -96,7 +96,7 @@ if(n.includes("bowler")) return "BOWL";
 return "BAT";
 }
 
-// 🔹 PLAYER WEIGHT (AI BASE)
+// 🔹 PLAYER WEIGHT
 function getWeight(name){
 let n=name.toLowerCase();
 
@@ -104,15 +104,15 @@ let n=name.toLowerCase();
 if(n.includes("kohli") || n.includes("rohit") || n.includes("buttler") || n.includes("rashid"))
 return 5;
 
-// 🔥 strong players
+// 🔥 strong
 if(n.includes("gill") || n.includes("rahul") || n.includes("iyer"))
 return 4;
 
-// 🎯 diff players
+// 🎯 diff
 return 2;
 }
 
-// PARSE INPUT
+// PARSE
 function parse(text,team){
 return text.split(",")
 .map(x=>x.trim())
@@ -125,7 +125,7 @@ weight:getWeight(x)
 }));
 }
 
-// VALIDATION
+// VALIDATE
 function validate(team){
 
 let A=team.filter(p=>p.team==="A").length;
@@ -155,12 +155,57 @@ r -= p.weight;
 return players[0];
 }
 
-// 🔥 UNIQUE TEAM HASH
+// 🔥 TEAM HASH
 function teamHash(team){
 return team.map(p=>p.name).sort().join("-");
 }
 
-// 🚀 MAIN GENERATOR
+// 🔥 ROLE-BASED C/VC (FIXED)
+function pickCaptainViceCaptain(team){
+
+let roles = {
+WK: team.filter(p=>p.role==="WK"),
+BAT: team.filter(p=>p.role==="BAT"),
+AR: team.filter(p=>p.role==="AR"),
+BOWL: team.filter(p=>p.role==="BOWL")
+};
+
+let combos = [
+["BAT","BOWL"],
+["AR","BAT"],
+["AR","BOWL"],
+["WK","BAT"]
+];
+
+let combo = combos[Math.floor(Math.random()*combos.length)];
+
+let role1 = combo[0];
+let role2 = combo[1];
+
+if(!roles[role1].length) role1 = "BAT";
+if(!roles[role2].length) role2 = "AR";
+
+// Captain
+let captainPool = roles[role1];
+let captain = captainPool.sort((a,b)=>b.weight-a.weight)[
+Math.floor(Math.random()*Math.min(2,captainPool.length))
+];
+
+// VC
+let vcPool = roles[role2].filter(p=>p.name!==captain.name);
+
+if(vcPool.length===0){
+vcPool = team.filter(p=>p.name!==captain.name);
+}
+
+let viceCaptain = vcPool.sort((a,b)=>b.weight-a.weight)[
+Math.floor(Math.random()*Math.min(3,vcPool.length))
+];
+
+return {captain, viceCaptain};
+}
+
+// 🚀 GENERATE
 function generate(){
 
 let A=parse(teamA.value,"A");
@@ -182,14 +227,14 @@ for(let t=1;t<=total;t++){
 let attempts=0;
 let success=false;
 
-while(attempts<150){
+while(attempts<200){
 
 attempts++;
 
 let team=[];
 let usedPlayers=new Set();
 
-// BUILD TEAM
+// BUILD
 while(team.length<11){
 
 let p = weightedPick(all);
@@ -203,28 +248,14 @@ team.push(p);
 // VALIDATE
 if(!validate(team)) continue;
 
-// UNIQUE CHECK
+// UNIQUE
 let hash = teamHash(team);
 if(usedTeams.has(hash)) continue;
 
 usedTeams.add(hash);
 
-// 🔥 SMART C/VC
-
-let sorted = [...team].sort((a,b)=>b.weight-a.weight);
-
-// 60% safe captain
-let captain = Math.random()<0.6
-? sorted[0]
-: sorted[Math.floor(Math.random()*5)];
-
-// VC logic
-let vcPool = team.filter(p=>p.name!==captain.name);
-
-let viceCaptain = Math.random()<0.5
-? vcPool.sort((a,b)=>b.weight-a.weight)[0]
-: vcPool[Math.floor(Math.random()*vcPool.length)];
-
+// 🎯 NEW C/VC
+let {captain, viceCaptain} = pickCaptainViceCaptain(team);
 
 // OUTPUT
 out+=`<div class="team"><b>Team ${t}</b>`;
@@ -255,4 +286,4 @@ document.getElementById("out").innerHTML=out;
 
 </body>
 </html>
-```
+
