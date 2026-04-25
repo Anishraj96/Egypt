@@ -16,23 +16,29 @@ input[type=number]{width:100%;background:var(--color-background-secondary);borde
 .stat-lbl{font-size:11px;color:var(--color-text-secondary);margin-top:2px;}
 .split-dist{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--color-text-secondary);}
 .split-dist b{color:var(--color-text-primary);}
+.cv-dist{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--color-text-secondary);line-height:1.8;}
+.cv-dist b{color:var(--color-text-primary);}
 .teams-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:10px;}
 .team-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:10px;font-size:12px;}
-.team-hdr{font-weight:500;font-size:13px;color:var(--color-text-primary);border-bottom:0.5px solid var(--color-border-tertiary);padding-bottom:6px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;}
-.split-pill{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;}
+.team-hdr{font-weight:500;font-size:13px;color:var(--color-text-primary);border-bottom:0.5px solid var(--color-border-tertiary);padding-bottom:6px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:4px;}
+.cv-line{font-size:10px;color:var(--color-text-secondary);padding-bottom:4px;margin-bottom:4px;border-bottom:0.5px dashed var(--color-border-tertiary);}
+.cv-line span{color:var(--color-text-primary);font-weight:500;}
+.split-pill{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;flex-shrink:0;}
 .sp-4-7{background:#ede9fe;color:#5b21b6;}
 .sp-5-6{background:#dbeafe;color:#1e40af;}
 .sp-6-5{background:#dcfce7;color:#166534;}
 .sp-7-4{background:#fef3c7;color:#92400e;}
 .player-row{display:flex;align-items:center;gap:4px;padding:3px 0;border-bottom:0.5px solid var(--color-border-tertiary);}
 .player-row:last-child{border-bottom:none;}
+.player-row.is-c{background:rgba(245,158,11,0.07);border-radius:4px;}
+.player-row.is-vc{background:rgba(56,189,248,0.07);border-radius:4px;}
 .role-tag{font-size:10px;padding:1px 5px;border-radius:4px;font-weight:500;flex-shrink:0;}
 .tag-wk{background:#fef3c7;color:#92400e;}
 .tag-bat{background:#dbeafe;color:#1e40af;}
 .tag-ar{background:#ede9fe;color:#5b21b6;}
 .tag-bowl{background:#dcfce7;color:#166534;}
-.c-badge{color:#f59e0b;font-weight:700;font-size:11px;margin-left:auto;}
-.vc-badge{color:#38bdf8;font-weight:700;font-size:11px;margin-left:auto;}
+.c-badge{color:#f59e0b;font-weight:700;font-size:11px;flex-shrink:0;}
+.vc-badge{color:#38bdf8;font-weight:700;font-size:11px;flex-shrink:0;}
 .pname{color:var(--color-text-primary);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .team-badge{font-size:10px;color:var(--color-text-secondary);flex-shrink:0;}
 .err{color:var(--color-text-danger);font-size:13px;text-align:center;padding:1rem;}
@@ -41,7 +47,6 @@ input[type=number]{width:100%;background:var(--color-background-secondary);borde
 </style>
 <div class="wrap">
 <h2>Dream11 GL AI Pro</h2>
-
 <div class="card">
   <div class="row">
     <div>
@@ -56,11 +61,10 @@ input[type=number]{width:100%;background:var(--color-background-secondary);borde
     </div>
   </div>
 </div>
-
 <div class="card">
   <div class="row">
     <div>
-      <label>Number of teams to generate</label>
+      <label>Number of teams</label>
       <input type="number" id="numTeams" value="10" min="1" max="50">
     </div>
     <div>
@@ -69,7 +73,6 @@ input[type=number]{width:100%;background:var(--color-background-secondary);borde
     </div>
   </div>
 </div>
-
 <button class="gen-btn" onclick="generate()">Generate Teams</button>
 <div id="out"></div>
 </div>
@@ -91,120 +94,103 @@ function cleanName(raw){
 }
 function parse(text,team){
   return text.split(",").map(x=>x.trim()).filter(x=>x).map(x=>({
-    raw:x, name:cleanName(x), team, role:getRole(x), weight:Math.random()
+    raw:x,name:cleanName(x),team,role:getRole(x),weight:Math.random()
   }));
 }
-
-// Validate with exact target split counts
-function validateSplit(team, targetA, targetB){
-  let A=team.filter(p=>p.team==="A").length;
-  let B=team.filter(p=>p.team==="B").length;
-  if(A!==targetA||B!==targetB) return false;
+function validateSplit(team,tA,tB){
+  if(team.filter(p=>p.team==="A").length!==tA) return false;
+  if(team.filter(p=>p.team==="B").length!==tB) return false;
   let wk=team.filter(p=>p.role==="WK").length;
   let bat=team.filter(p=>p.role==="BAT").length;
   let ar=team.filter(p=>p.role==="AR").length;
   let bowl=team.filter(p=>p.role==="BOWL").length;
-  if(wk<1||bat<3||ar<1||bowl<3) return false;
-  if(wk>4||bat>6||ar>4||bowl>6) return false;
-  return true;
+  return wk>=1&&bat>=3&&ar>=1&&bowl>=3&&wk<=4&&bat<=6&&ar<=4&&bowl<=6;
 }
-
-// Generate all valid split combos given maxPerSide
 function getSplitCombos(maxPerSide){
   let combos=[];
-  let minPerSide=11-maxPerSide;
-  for(let a=minPerSide;a<=maxPerSide;a++){
-    let b=11-a;
-    if(b>=minPerSide&&b<=maxPerSide) combos.push([a,b]);
-  }
+  let min=11-maxPerSide;
+  for(let a=min;a<=maxPerSide;a++){let b=11-a;if(b>=min&&b<=maxPerSide)combos.push([a,b]);}
   return combos;
 }
-
-// Assign split targets round-robin + shuffled so variety is guaranteed
-function assignSplits(numTeams, maxPerSide){
+function assignSplits(n,maxPerSide){
   let combos=getSplitCombos(maxPerSide);
   let result=[];
-  // Fill round-robin, then shuffle in groups
-  while(result.length<numTeams){
-    let shuffled=[...combos].sort(()=>Math.random()-0.5);
-    result.push(...shuffled);
+  while(result.length<n){
+    let s=[...combos].sort(()=>Math.random()-0.5);
+    result.push(...s);
   }
-  return result.slice(0,numTeams);
+  return result.slice(0,n);
 }
-
-function shuffle(arr){
+function weightedShuffle(arr){
   return arr.map(p=>({...p,sort:Math.random()*0.55+p.weight*0.45})).sort((a,b)=>b.sort-a.sort);
 }
 
-let cvUsage={};
+// ─── C/VC ENGINE ────────────────────────────────────────────────
+// Tracks per-player C and VC count globally across all teams
+let cCount={}, vcCount={};
+
+// Role weights: AR and WK carry more, then BAT, BOWL least likely C/VC
+const roleWeight={AR:1.0,WK:0.85,BAT:0.7,BOWL:0.3};
 
 function pickCVC(team){
-  let eligible=team.filter(p=>p.role==="AR"||p.role==="BAT"||p.role==="WK");
-  if(eligible.length<2) eligible=[...team];
-  eligible=eligible.map(p=>({...p,score:(cvUsage[p.name]||0)+Math.random()*0.6}))
-                   .sort((a,b)=>a.score-b.score);
-  let c=eligible[0];
-  let vc=eligible[1];
-  cvUsage[c.name]=(cvUsage[c.name]||0)+1.5;
-  cvUsage[vc.name]=(cvUsage[vc.name]||0)+1;
-  return {c:c.name,vc:vc.name};
+  // Score each player: low usage + role weight + randomness
+  let scored=team.map(p=>{
+    let cScore=(cCount[p.name]||0)*2 + (vcCount[p.name]||0)*1 - roleWeight[p.role] + Math.random()*1.8;
+    let vcScore=(vcCount[p.name]||0)*2 + (cCount[p.name]||0)*0.5 - roleWeight[p.role] + Math.random()*1.8;
+    return {...p,cScore,vcScore};
+  });
+
+  // Pick C: lowest cScore
+  scored.sort((a,b)=>a.cScore-b.cScore);
+  let c=scored[0];
+
+  // Pick VC: lowest vcScore among remaining (must differ from C)
+  let rest=scored.filter(p=>p.name!==c.name);
+  rest.sort((a,b)=>a.vcScore-b.vcScore);
+  let vc=rest[0];
+
+  cCount[c.name]=(cCount[c.name]||0)+1;
+  vcCount[vc.name]=(vcCount[vc.name]||0)+1;
+  return {c:c.name,vc:vc.name,cRole:c.role,vcRole:vc.role};
 }
+// ────────────────────────────────────────────────────────────────
 
-function buildTeamForSplit(allA, allB, targetA, targetB, usedCombos){
-  for(let attempt=0;attempt<400;attempt++){
-    let sA=shuffle(allA);
-    let sB=shuffle(allB);
-
+function buildTeam(allA,allB,tA,tB,usedCombos){
+  for(let att=0;att<400;att++){
+    let sA=weightedShuffle(allA);
+    let sB=weightedShuffle(allB);
+    let combined=weightedShuffle([...allA,...allB]);
     let team=[];
-    let usedNames=new Set();
-    let roles={WK:0,BAT:0,AR:0,BOWL:0};
+    let used=new Set();
 
-    // Fill minimum roles from both pools proportionally
-    let minSlots=[
-      {role:"WK",min:1},{role:"BAT",min:3},{role:"AR",min:1},{role:"BOWL",min:3}
-    ];
-
-    let combined=shuffle([...sA,...sB]);
-
-    // Step 1: fill min role requirements
-    for(let req of minSlots){
-      let cands=combined.filter(p=>p.role===req.role&&!usedNames.has(p.name));
+    // Step 1: fill minimum role requirements from combined pool
+    let mins=[{role:"WK",min:1},{role:"BAT",min:3},{role:"AR",min:1},{role:"BOWL",min:3}];
+    let ok=true;
+    for(let req of mins){
+      let cands=combined.filter(p=>p.role===req.role&&!used.has(p.name));
       let need=req.min;
       for(let p of cands){
-        if(need===0) break;
-        team.push(p);
-        usedNames.add(p.name);
-        roles[p.role]++;
-        need--;
+        if(need===0)break;
+        team.push(p);used.add(p.name);need--;
       }
-      if(need>0){team=[];break;}
+      if(need>0){ok=false;break;}
     }
-    if(team.length===0) continue;
+    if(!ok)continue;
 
-    // Step 2: fill remaining spots enforcing targetA/targetB
+    // Step 2: top up to exact split
     let curA=team.filter(p=>p.team==="A").length;
     let curB=team.filter(p=>p.team==="B").length;
-    let remA=targetA-curA;
-    let remB=targetB-curB;
+    let remA=tA-curA, remB=tB-curB;
+    if(remA<0||remB<0)continue;
 
-    // Fill from A pool
-    for(let p of sA){
-      if(remA===0) break;
-      if(usedNames.has(p.name)) continue;
-      team.push(p); usedNames.add(p.name); remA--;
-    }
-    // Fill from B pool
-    for(let p of sB){
-      if(remB===0) break;
-      if(usedNames.has(p.name)) continue;
-      team.push(p); usedNames.add(p.name); remB--;
-    }
+    for(let p of sA){if(remA===0)break;if(used.has(p.name))continue;team.push(p);used.add(p.name);remA--;}
+    for(let p of sB){if(remB===0)break;if(used.has(p.name))continue;team.push(p);used.add(p.name);remB--;}
 
-    if(team.length!==11) continue;
-    if(!validateSplit(team,targetA,targetB)) continue;
+    if(team.length!==11)continue;
+    if(!validateSplit(team,tA,tB))continue;
 
     let key=[...team].map(p=>p.name).sort().join("|");
-    if(usedCombos.has(key)) continue;
+    if(usedCombos.has(key))continue;
     usedCombos.add(key);
     return team;
   }
@@ -217,33 +203,21 @@ const roleTag={
   AR:'<span class="role-tag tag-ar">AR</span>',
   BOWL:'<span class="role-tag tag-bowl">BOWL</span>',
 };
-
-function splitPillClass(a,b){
-  if(a<=4) return "sp-4-7";
-  if(a===5) return "sp-5-6";
-  if(a===6) return "sp-6-5";
-  return "sp-7-4";
+function splitPillClass(a){
+  if(a<=4)return"sp-4-7";if(a===5)return"sp-5-6";if(a===6)return"sp-6-5";return"sp-7-4";
 }
 
 function generate(){
-  cvUsage={};
+  cCount={};vcCount={};
   let A=parse(document.getElementById("teamA").value,"A");
   let B=parse(document.getElementById("teamB").value,"B");
   let numTeams=parseInt(document.getElementById("numTeams").value)||10;
   let maxPerSide=parseInt(document.getElementById("maxPerSide").value)||7;
 
-  if(A.length<5||B.length<5){
-    document.getElementById("out").innerHTML='<div class="err">Please enter at least 5 players per team.</div>';
-    return;
-  }
-  if(A.length+B.length<11){
-    document.getElementById("out").innerHTML='<div class="err">Need at least 11 total players.</div>';
-    return;
-  }
+  if(A.length<5||B.length<5){document.getElementById("out").innerHTML='<div class="err">Please enter at least 5 players per team.</div>';return;}
+  if(A.length+B.length<11){document.getElementById("out").innerHTML='<div class="err">Need at least 11 total players.</div>';return;}
 
   let warn=A.length+B.length<15?'<div class="warn">Small player pool — add more players for better variety.</div>':"";
-
-  // Assign varied splits upfront
   let splitTargets=assignSplits(numTeams,maxPerSide);
   let usedCombos=new Set();
   let results=[];
@@ -251,50 +225,49 @@ function generate(){
 
   for(let i=0;i<numTeams;i++){
     let[tA,tB]=splitTargets[i];
-    let team=buildTeamForSplit(A,B,tA,tB,usedCombos);
+    let team=buildTeam(A,B,tA,tB,usedCombos);
     if(team){
       results.push({team,tA,tB});
-      let k=`A:${tA} B:${tB}`;
-      splitMap[k]=(splitMap[k]||0)+1;
+      let k=`A:${tA} B:${tB}`;splitMap[k]=(splitMap[k]||0)+1;
     }
   }
 
-  if(!results.length){
-    document.getElementById("out").innerHTML='<div class="err">Could not generate any valid teams. Check player roles and pool size.</div>';
-    return;
-  }
+  if(!results.length){document.getElementById("out").innerHTML='<div class="err">Could not generate valid teams. Check roles and pool size.</div>';return;}
 
-  // Split distribution summary
-  let distHtml=Object.entries(splitMap).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>`<b>${k}</b>: ${v} team${v>1?"s":""}`).join(" &nbsp;·&nbsp; ");
+  // Assign C/VC for all teams at once so global tracking works
+  let cvAssigned=results.map(({team,tA,tB})=>({team,tA,tB,...pickCVC(team)}));
+
+  // Build C/VC summary
+  let cSummary=Object.entries(cCount).sort((a,b)=>b[1]-a[1]).map(([n,v])=>`<b>${n}</b> ×${v}`).join("  ·  ");
+  let vcSummary=Object.entries(vcCount).sort((a,b)=>b[1]-a[1]).map(([n,v])=>`<b>${n}</b> ×${v}`).join("  ·  ");
+  let distHtml=Object.entries(splitMap).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>`<b>${k}</b>: ${v}`).join("  ·  ");
 
   let html=`${warn}
   <div class="stats">
     <div class="stat"><div class="stat-val">${results.length}</div><div class="stat-lbl">Teams generated</div></div>
     <div class="stat"><div class="stat-val">${Object.keys(splitMap).length}</div><div class="stat-lbl">Unique splits</div></div>
-    <div class="stat"><div class="stat-val">${A.length}</div><div class="stat-lbl">Team A pool</div></div>
-    <div class="stat"><div class="stat-val">${B.length}</div><div class="stat-lbl">Team B pool</div></div>
+    <div class="stat"><div class="stat-val">${Object.keys(cCount).length}</div><div class="stat-lbl">Unique captains</div></div>
+    <div class="stat"><div class="stat-val">${Object.keys(vcCount).length}</div><div class="stat-lbl">Unique vice-caps</div></div>
   </div>
-  <div class="split-dist">Split distribution &nbsp;— &nbsp;${distHtml}</div>
+  <div class="split-dist">Splits — ${distHtml}</div>
+  <div class="cv-dist">C usage — ${cSummary}<br>VC usage — ${vcSummary}</div>
   <div class="teams-grid">`;
 
-  results.forEach(({team,tA,tB},idx)=>{
-    let{c,vc}=pickCVC(team);
-    let order={WK:0,BAT:1,AR:2,BOWL:3};
-    let sorted=[...team].sort((a,b)=>{
-      if(a.name===c) return -1; if(b.name===c) return 1;
-      if(a.name===vc) return -1; if(b.name===vc) return 1;
-      return order[a.role]-order[b.role];
-    });
+  const roleOrder={WK:0,BAT:1,AR:2,BOWL:3};
 
-    let pc=splitPillClass(tA,tB);
+  cvAssigned.forEach(({team,tA,tB,c,vc,cRole,vcRole},idx)=>{
+    // Sort players: by role order, C/VC get highlighted inline
+    let sorted=[...team].sort((a,b)=>roleOrder[a.role]-roleOrder[b.role]);
+
     html+=`<div class="team-card">
-      <div class="team-hdr"><span>Team ${idx+1}</span><span class="split-pill ${pc}">A:${tA} B:${tB}</span></div>`;
+      <div class="team-hdr"><span>Team ${idx+1}</span><span class="split-pill ${splitPillClass(tA)}">A:${tA} B:${tB}</span></div>
+      <div class="cv-line">C: <span>${c}</span> (${cRole}) &nbsp;·&nbsp; VC: <span>${vc}</span> (${vcRole})</div>`;
 
     sorted.forEach(p=>{
-      let badge="";
-      if(p.name===c) badge='<span class="c-badge">C</span>';
-      else if(p.name===vc) badge='<span class="vc-badge">VC</span>';
-      html+=`<div class="player-row">${roleTag[p.role]}<span class="pname">${p.name}</span><span class="team-badge">${p.team}</span>${badge}</div>`;
+      let isC=p.name===c, isVC=p.name===vc;
+      let rowCls=isC?" is-c":isVC?" is-vc":"";
+      let badge=isC?'<span class="c-badge">C</span>':isVC?'<span class="vc-badge">VC</span>':"";
+      html+=`<div class="player-row${rowCls}">${roleTag[p.role]}<span class="pname">${p.name}</span><span class="team-badge">${p.team}</span>${badge}</div>`;
     });
     html+=`</div>`;
   });
